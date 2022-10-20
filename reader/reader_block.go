@@ -10,15 +10,14 @@ import (
 )
 
 type Move byte
-type FindResult byte
 
 const (
 	// no values greater or equal to key exist
-	NotFound FindResult = 0
+	NotFound = 0
 	// exact match
-	Found FindResult = 1
+	Found = 1
 	// found a value greater or equal to key
-	Partial FindResult = 2
+	Partial = 2
 )
 
 const (
@@ -50,7 +49,7 @@ func NewBlock(buf []byte, fixedValueSize int) Block {
 	return b
 }
 
-func (b *Block) Find(kv *shared.KV, back bool) FindResult {
+func (b *Block) Find(kv *shared.KV, back bool) int {
 	lo := int32(0)
 	hi := b.count - 1
 

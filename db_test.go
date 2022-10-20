@@ -11,18 +11,20 @@ import (
 	"github.com/stangelandcl/teepeedb/shared"
 )
 
-func TestDB(t *testing.T) {
-	db, err := Open("test.db", NewOpt().WithCacheSize(256*1024*1024))
+func E[T any](x T, err error) T {
 	if err != nil {
 		panic(err)
 	}
+	return x
+}
+
+func TestDB(t *testing.T) {
+	db := E(Open("test.db", NewOpt().WithCacheSize(256*1024*1024)))
 	defer db.Close()
 
+	var err error
 	count := 10_000_000
-	w, err := db.Write()
-	if err != nil {
-		panic(err)
-	}
+	w := E(db.Write())
 	defer w.Close()
 	tm := time.Now()
 	for i := 0; i < count; i++ {
@@ -37,10 +39,7 @@ func TestDB(t *testing.T) {
 				panic(err)
 			}
 			w.Close()
-			w, err = db.Write()
-			if err != nil {
-				panic(err)
-			}
+			w = E(db.Write())
 		}
 	}
 	err = w.Commit()
@@ -70,46 +69,42 @@ func TestDB(t *testing.T) {
 	*/
 
 	tm = time.Now()
-	c, err := db.Cursor()
-
-	//c, err := r.Cursor()
-	if err != nil {
-		panic(err)
-	}
+	c := E(db.Cursor())
+	defer c.Close()
 
 	kv := shared.KV{}
 	i := uint32(0)
-	more := c.First(&kv)
+	more := E(c.First(&kv))
 	for more {
 		k := binary.BigEndian.Uint32(kv.Key)
 		v := binary.BigEndian.Uint32(kv.Value)
 		if i != k || i != v {
 			log.Panicln("i", i, "k", k, "v", v)
 		}
-		more = c.Next(&kv)
+		more = E(c.Next(&kv))
 		i++
 	}
 	fmt.Println("iterated", i, "in", time.Since(tm))
 
 	kv.Key = binary.BigEndian.AppendUint32(nil, uint32(25_578))
-	if c.Find(&kv) == reader.Found {
+	if E(c.Find(&kv)) == reader.Found {
 		fmt.Println("found", binary.BigEndian.Uint32(kv.Value))
 
-		if c.Next(&kv) {
+		if E(c.Next(&kv)) {
 			fmt.Println("next", binary.BigEndian.Uint32(kv.Key), binary.BigEndian.Uint32(kv.Value))
-			if c.Next(&kv) {
+			if E(c.Next(&kv)) {
 				fmt.Println("next", binary.BigEndian.Uint32(kv.Key), binary.BigEndian.Uint32(kv.Value))
 			}
 		}
 	}
 
 	kv.Key = binary.BigEndian.AppendUint32(nil, uint32(25_578))
-	if c.Find(&kv) == reader.Found {
+	if E(c.Find(&kv)) == reader.Found {
 		fmt.Println("found", binary.BigEndian.Uint32(kv.Value))
 
-		if c.Previous(&kv) {
+		if E(c.Previous(&kv)) {
 			fmt.Println("prev", binary.BigEndian.Uint32(kv.Key), binary.BigEndian.Uint32(kv.Value))
-			if c.Previous(&kv) {
+			if E(c.Previous(&kv)) {
 				fmt.Println("prev", binary.BigEndian.Uint32(kv.Key), binary.BigEndian.Uint32(kv.Value))
 			}
 		}

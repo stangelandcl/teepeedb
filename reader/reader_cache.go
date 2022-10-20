@@ -1,6 +1,10 @@
 package reader
 
-import lru "github.com/hashicorp/golang-lru"
+import (
+	"log"
+
+	lru "github.com/hashicorp/golang-lru"
+)
 
 type Cache interface {
 	Get(key any) (val any, ok bool)
@@ -8,9 +12,13 @@ type Cache interface {
 }
 
 func NewCache(size int) Cache {
+	if size <= 0 {
+		size = 4 * 1024 * 1024
+	}
 	cache, err := lru.New2Q(size)
 	if err != nil {
-		panic(err)
+		// should never happen with size > 0
+		log.Panicln("lru creation error", err)
 	}
 	return cache
 }

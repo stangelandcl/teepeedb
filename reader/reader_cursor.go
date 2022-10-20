@@ -13,35 +13,35 @@ type Cursor struct {
 	indexes   []Index
 }
 
-func (c *Cursor) First(kv *shared.KV) bool {
+func (c *Cursor) First(kv *shared.KV) (bool, error) {
 	return c.firstLast(First, kv)
 }
 
-func (c *Cursor) Last(kv *shared.KV) bool {
+func (c *Cursor) Last(kv *shared.KV) (bool, error) {
 	return c.firstLast(Last, kv)
 }
 
-func (c *Cursor) Next(kv *shared.KV) bool {
+func (c *Cursor) Next(kv *shared.KV) (bool, error) {
 	return c.nextPrev(Next, kv)
 }
 
-func (c *Cursor) Previous(kv *shared.KV) bool {
+func (c *Cursor) Previous(kv *shared.KV) (bool, error) {
 	return c.nextPrev(Previous, kv)
 }
 
-func (c *Cursor) Move(dir Move, kv *shared.KV) bool {
+func (c *Cursor) Move(dir Move, kv *shared.KV) (bool, error) {
 	switch dir {
 	case First, Last:
 		return c.firstLast(dir, kv)
 	case Next, Previous:
 		return c.nextPrev(dir, kv)
 	}
-	return false
+	return false, nil
 }
 
-func (c *Cursor) Find(kv *shared.KV) FindResult {
+func (c *Cursor) Find(kv *shared.KV) (int, error) {
 	if c.block.InRange(kv) {
-		return c.block.Find(kv, false)
+		return c.block.Find(kv, false), nil
 	}
 
 	if true {
@@ -59,7 +59,7 @@ func (c *Cursor) Find(kv *shared.KV) FindResult {
 	for i := len(c.indexes) - 1; i < len(c.indexes); i++ {
 		ikv.Key = kv.Key
 		if !c.indexes[i].LessOrEqual(&ikv) {
-			return NotFound
+			return NotFound, nil
 		}
 		if ikv.Type == shared.DataBlock {
 			break
@@ -67,7 +67,7 @@ func (c *Cursor) Find(kv *shared.KV) FindResult {
 
 		buf, err := c.f.ReadBlock(ikv.Position)
 		if err != nil {
-			panic(err)
+			return 0, err
 		}
 		idx := NewIndex(buf)
 		c.indexes = append(c.indexes, idx)
@@ -75,16 +75,16 @@ func (c *Cursor) Find(kv *shared.KV) FindResult {
 
 	buf, err := c.f.ReadBlock(ikv.Position)
 	if err != nil {
-		panic(err)
+		return 0, err
 	}
 	c.block = NewBlock(buf, c.fixedSize)
-	return c.block.Find(kv, false)
+	return c.block.Find(kv, false), nil
 }
 
-func (c *Cursor) follow(dir Move, ikv *IndexKV, i int) bool {
+func (c *Cursor) follow(dir Move, ikv *IndexKV, i int) (bool, error) {
 	for ; i < len(c.indexes); i++ {
 		if !c.indexes[i].Move(dir, ikv) {
-			return false
+			return false, nil
 		}
 		if ikv.Type == shared.DataBlock {
 			c.indexes = c.indexes[:i+1]
@@ -92,7 +92,7 @@ func (c *Cursor) follow(dir Move, ikv *IndexKV, i int) bool {
 		}
 		buf, err := c.f.ReadBlock(ikv.Position)
 		if err != nil {
-			panic(err)
+			return false, err
 		}
 		idx := NewIndex(buf)
 		idx.Move(dir, ikv)
@@ -101,24 +101,25 @@ func (c *Cursor) follow(dir Move, ikv *IndexKV, i int) bool {
 
 	buf, err := c.f.ReadBlock(ikv.Position)
 	if err != nil {
-		panic(err)
+		return false, err
 	}
 	c.block = NewBlock(buf, c.fixedSize)
-	return true
+	return true, nil
 }
 
-func (c *Cursor) firstLast(dir Move, kv *shared.KV) bool {
+func (c *Cursor) firstLast(dir Move, kv *shared.KV) (bool, error) {
 	c.indexes = c.indexes[:1]
 	ikv := IndexKV{}
-	if !c.follow(dir, &ikv, 0) {
-		return false
+	found, err := c.follow(dir, &ikv, 0)
+	if !found {
+		return found, err
 	}
-	return c.block.Move(dir, kv)
+	return c.block.Move(dir, kv), nil
 }
 
-func (c *Cursor) nextPrev(dir Move, kv *shared.KV) bool {
+func (c *Cursor) nextPrev(dir Move, kv *shared.KV) (bool, error) {
 	if c.block.Move(dir, kv) {
-		return true
+		return true, nil
 	}
 
 	ikv := IndexKV{}
@@ -129,13 +130,13 @@ func (c *Cursor) nextPrev(dir Move, kv *shared.KV) bool {
 		}
 	}
 	if i < 0 {
-		return false
+		return false, nil
 	}
 	c.indexes = c.indexes[:i+1]
 	if ikv.Type == shared.IndexBlock {
 		buf, err := c.f.ReadBlock(ikv.Position)
 		if err != nil {
-			panic(err)
+			return false, err
 		}
 
 		c.indexes = append(c.indexes, NewIndex(buf))
@@ -146,10 +147,11 @@ func (c *Cursor) nextPrev(dir Move, kv *shared.KV) bool {
 	case Next:
 		dir = First
 	}
-	if !c.follow(dir, &ikv, i+1) {
-		return false
+	found, err := c.follow(dir, &ikv, i+1)
+	if !found {
+		return false, err
 	}
-	return c.block.Move(dir, kv)
+	return c.block.Move(dir, kv), nil
 }
 
 func (c *Cursor) Print() {

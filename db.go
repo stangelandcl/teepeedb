@@ -31,6 +31,15 @@ type Cursor struct {
 	merge.Cursor
 }
 
+const (
+	// no values greater or equal to key exist
+	NotFound = reader.NotFound
+	// exact match
+	Found = reader.Found
+	// found a value greater or equal to key
+	Partial = reader.Partial
+)
+
 func Open(directory string, opts ...Opt) (*DB, error) {
 	opt := NewOpt()
 	if len(opts) > 0 {

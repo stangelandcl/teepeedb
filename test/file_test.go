@@ -15,6 +15,13 @@ import (
 	"github.com/stangelandcl/teepeedb/writer"
 )
 
+func E[T any](x T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return x
+}
+
 func TestFile(t *testing.T) {
 	cache := reader.NewCache(256 * 1024 * 1024 / 4096)
 	for u := 0; u < 2; u++ {
@@ -60,7 +67,7 @@ func TestFile(t *testing.T) {
 			panic(err)
 		}
 		i := uint32(0)
-		if !c.First(&kv) {
+		if E(c.First(&kv)) {
 			panic("not first")
 		}
 		for {
@@ -73,7 +80,7 @@ func TestFile(t *testing.T) {
 				log.Panicln("invalid kv at", i, k)
 			}
 			i++
-			if !c.Next(&kv) {
+			if !E(c.Next(&kv)) {
 				break
 			}
 		}
@@ -83,7 +90,7 @@ func TestFile(t *testing.T) {
 		fmt.Println("forward", i, "in", time.Since(tm))
 
 		i = uint32(count)
-		if !c.Last(&kv) {
+		if !E(c.Last(&kv)) {
 			panic("not last")
 		}
 		for {
@@ -93,7 +100,7 @@ func TestFile(t *testing.T) {
 			if k != i || v != 1 {
 				log.Panicln("invalid kv at", i, k)
 			}
-			if !c.Previous(&kv) {
+			if !E(c.Previous(&kv)) {
 				break
 			}
 		}
@@ -105,7 +112,7 @@ func TestFile(t *testing.T) {
 		for i := uint32(0); i < uint32(count); i++ {
 			kv.Key = make([]byte, 4)
 			binary.BigEndian.PutUint32(kv.Key, i)
-			if c.Find(&kv) == 0 {
+			if E(c.Find(&kv)) == 0 {
 				log.Panicln("can't find sorted", i)
 			}
 			if len(kv.Key) != 4 || len(kv.Value) != 4 {
@@ -128,7 +135,7 @@ func TestFile(t *testing.T) {
 		for i := uint32(0); i < 1_000_000; i++ {
 			kv.Key = make([]byte, 4)
 			binary.BigEndian.PutUint32(kv.Key, ids[i])
-			if c.Find(&kv) == 0 {
+			if E(c.Find(&kv)) == 0 {
 				log.Panicln("can't find", ids[i], "at", i)
 			}
 			k := binary.BigEndian.Uint32(kv.Key)
@@ -147,7 +154,7 @@ func TestFile(t *testing.T) {
 			kb := make([]byte, 4)
 			binary.BigEndian.PutUint32(kb, ids[i])
 			kv.Key = kb
-			if c.Find(&kv) == 0 {
+			if E(c.Find(&kv)) == 0 {
 				log.Panicln("can't find", ids[i], "at", i)
 			}
 			k := binary.BigEndian.Uint32(kv.Key)

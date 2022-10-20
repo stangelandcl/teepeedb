@@ -48,9 +48,13 @@ func (w *merger) Run() error {
 	if err != nil {
 		return err
 	}
+	defer c.Close()
 	keys := []uint32{}
 	kv := shared.KV{}
-	more := c.First(&kv)
+	more, err := c.First(&kv)
+	if err != nil {
+		return err
+	}
 	for more {
 		keys = append(keys, binary.BigEndian.Uint32(kv.Key))
 
@@ -60,7 +64,10 @@ func (w *merger) Run() error {
 				return err
 			}
 		}
-		more = c.Next(&kv)
+		more, err = c.Next(&kv)
+		if err != nil {
+			return err
+		}
 	}
 
 	sort.Slice(keys, func(i, j int) bool {
