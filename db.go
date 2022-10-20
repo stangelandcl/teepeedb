@@ -2,6 +2,7 @@ package teepeedb
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -143,7 +144,7 @@ func (db *DB) Close() {
 	db.done = true
 
 	if !db.writeLock.TryLock() {
-		fmt.Println("waiting for write to close")
+		log.Println("teepeedb: waiting for write to close")
 		db.writeLock.Lock()
 	}
 	defer db.writeLock.Unlock()
