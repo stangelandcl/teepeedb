@@ -2,26 +2,20 @@ package writer
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
+	"os"
 
 	"github.com/stangelandcl/teepeedb/shared"
 )
 
-type Opt struct {
-	// size of each block in the file
-	BlockSize int
-	// < 0 == variable size value, 0 == key only, > 0 == fixed size value
-	FixedValueSize int
-	Compressed     bool
-}
-
 type File struct {
-	indexes        []Index
-	f              *Buffered
-	blockWriter    BlockWriter
-	block          Block
-	blockSize      int
-	fixedValueSize int
+	indexes     []Index
+	f           *Buffered
+	blockWriter BlockWriter
+	block       Block
+	blockSize   int
+	valueSize   int
 
 	indexSize         int
 	indexCount        int
@@ -29,39 +23,31 @@ type File struct {
 	dataCount         int
 	lastIndexPosition int
 	flushed           bool
-	compressed        bool
+	compression       shared.Compression
 }
 
-func NewOpt() Opt {
-	return Opt{
-		BlockSize:      4096,
-		FixedValueSize: -1,
-		Compressed:     false,
-	}
-}
-
-func NewFile(filename string, opts ...Opt) (*File, error) {
-	opt := NewOpt()
-	if len(opts) > 0 {
-		opt = opts[0]
-	}
-
+func NewFile(filename string, blockSize, valueSize int, compression shared.Compression) (*File, error) {
 	fw := &File{
-		blockSize:      opt.BlockSize,
-		fixedValueSize: opt.FixedValueSize,
+		blockSize: blockSize,
+		valueSize: valueSize,
 	}
 	f, err := NewBuffered(filename)
 	if err != nil {
 		return nil, err
 	}
 	fw.f = f
-	fw.compressed = opt.Compressed
-	if opt.Compressed {
-		fw.blockWriter = NewLz4(fw.f)
-	} else {
+	fw.compression = compression
+	switch compression {
+	case shared.Raw:
 		fw.blockWriter = NewRaw(fw.f)
+	case shared.Lz4:
+		fw.blockWriter = NewLz4(fw.f)
+	default:
+		f.Close()
+		os.Remove(filename)
+		return nil, fmt.Errorf("unsupported compression: %v", compression)
 	}
-	fw.block = NewBlock(opt.BlockSize, opt.FixedValueSize >= 0)
+	fw.block = NewBlock(blockSize, valueSize >= 0)
 	fw.indexes = append(fw.indexes, NewIndex(fw.blockSize))
 	return fw, nil
 }
@@ -114,14 +100,8 @@ func (f *File) flush() error {
 	}
 
 	vi := make([]byte, 17)
-	var typ shared.CompressType
-	if f.compressed {
-		typ = shared.Lz4
-	} else {
-		typ = shared.Raw
-	}
-	vi[0] = byte(typ)
-	binary.LittleEndian.PutUint64(vi[1:], uint64(f.fixedValueSize))
+	vi[0] = byte(f.compression)
+	binary.LittleEndian.PutUint64(vi[1:], uint64(f.valueSize))
 	binary.LittleEndian.PutUint64(vi[9:], uint64(f.lastIndexPosition))
 	_, err = f.f.Write(vi)
 	if err != nil {

@@ -25,11 +25,10 @@ func E[T any](x T, err error) T {
 func TestFile(t *testing.T) {
 	cache := reader.NewCache(256 * 1024 * 1024 / 4096)
 	for u := 0; u < 2; u++ {
-		opt := writer.NewOpt()
-		opt.Compressed = u == 1
+		comp := shared.Compression(u)
 		fmt.Println()
-		fmt.Println("compressed?", opt.Compressed)
-		w, err := writer.NewFile("test.db", opt)
+		fmt.Println("compressed?", comp)
+		w, err := writer.NewFile("test.db", 4096, -1, comp)
 		if err != nil {
 			panic(err)
 		}
@@ -67,7 +66,7 @@ func TestFile(t *testing.T) {
 			panic(err)
 		}
 		i := uint32(0)
-		if E(c.First(&kv)) {
+		if !E(c.First(&kv)) {
 			panic("not first")
 		}
 		for {

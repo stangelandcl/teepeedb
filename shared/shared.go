@@ -2,14 +2,14 @@ package shared
 
 type BlockType byte
 
-type CompressType byte
+type Compression byte
 
 const (
 	DataBlock  BlockType = 0
 	IndexBlock BlockType = 1
 
-	Raw CompressType = 0
-	Lz4 CompressType = 1
+	Raw Compression = 0
+	Lz4 Compression = 1
 )
 
 type IndexValue struct {

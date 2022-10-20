@@ -22,7 +22,7 @@ type merger struct {
 // files in order newest to oldest
 // hardDelete means remove from file instead of inserting a delete tombstone
 // fixedValueSize < 0 == variable size
-func newMerger(dstfile string, files []string, cache reader.Cache, hardDelete bool, opts ...writer.Opt) (merger, error) {
+func newMerger(dstfile string, files []string, cache reader.Cache, hardDelete bool, blockSize, valueSize int, compression shared.Compression) (merger, error) {
 	w := merger{
 		files:   files,
 		dstfile: dstfile,
@@ -31,7 +31,7 @@ func newMerger(dstfile string, files []string, cache reader.Cache, hardDelete bo
 	if err != nil {
 		return w, err
 	}
-	f, err := writer.NewFile(dstfile+".tmp", opts...)
+	f, err := writer.NewFile(dstfile+".tmp", blockSize, valueSize, compression)
 	if err != nil {
 		r.Close()
 		return w, err
@@ -111,14 +111,14 @@ func (w *merger) Close() {
 	}
 }
 
-func Merge(dstfile string, files []string, cache reader.Cache, hardDelete bool, opts ...writer.Opt) error {
+func Merge(dstfile string, files []string, cache reader.Cache, hardDelete bool, blockSize, valueSize int, compression shared.Compression) error {
 	if len(files) == 0 {
 		return nil
 	}
 	if len(files) == 1 {
 		return os.Rename(files[0], dstfile)
 	}
-	w, err := newMerger(dstfile, files, cache, hardDelete, opts...)
+	w, err := newMerger(dstfile, files, cache, hardDelete, blockSize, valueSize, compression)
 	if err != nil {
 		os.Remove(dstfile + ".tmp")
 		return err

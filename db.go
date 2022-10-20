@@ -1,4 +1,4 @@
-package db
+package teepeedb
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/stangelandcl/teepeedb/merge"
 	"github.com/stangelandcl/teepeedb/reader"
+	"github.com/stangelandcl/teepeedb/shared"
 	"github.com/stangelandcl/teepeedb/writer"
 )
 
@@ -19,12 +20,16 @@ type DB struct {
 	// so opening a cursor and closing the reader don't overlap
 	readLock   sync.Mutex
 	counter    int64
-	opt        writer.Opt
 	mergerChan chan int
 	cache      reader.Cache
 	wg         sync.WaitGroup
 	reader     *merge.Reader
 	done       bool
+
+	// options
+	compression shared.Compression
+	blockSize   int
+	valueSize   int
 }
 
 type Cursor struct {
@@ -41,19 +46,20 @@ const (
 )
 
 func Open(directory string, opts ...Opt) (*DB, error) {
-	opt := NewOpt()
-	if len(opts) > 0 {
-		opt = opts[0]
-	}
+
 	err := os.MkdirAll(directory, 0755)
 	if err != nil {
 		return nil, err
 	}
 	db := &DB{
 		directory:  directory,
-		opt:        opt.w,
 		mergerChan: make(chan int, 2),
-		cache:      opt.cache,
+
+		/* options */
+		cache:       &reader.NullCache{},
+		blockSize:   4096,
+		valueSize:   -1,
+		compression: shared.Raw,
 	}
 	err = db.resetReader()
 	if err != nil {
@@ -110,7 +116,7 @@ func (db *DB) Write() (Writer, error) {
 
 	c := atomic.AddInt64(&db.counter, 1) // TODO: reset counter to zero after merge if empty
 	filename := fmt.Sprintf("%v/l0.%016d.lsm", db.directory, c)
-	w, err := writer.NewFile(filename+".tmp", db.opt)
+	w, err := writer.NewFile(filename+".tmp", db.blockSize, db.valueSize, db.compression)
 	if err != nil {
 		db.writeLock.Unlock()
 

@@ -1,4 +1,4 @@
-package db
+package teepeedb
 
 import (
 	"fmt"
@@ -56,7 +56,7 @@ func (db *DB) mergeLoop() {
 			//log.Println("merging", files, "->", l1)
 			//tm := time.Now()
 			//fmt.Println("merging", len(files), "files ->", l1)
-			err = merge.Merge(l1, files, db.cache, delete, db.opt)
+			err = merge.Merge(l1, files, db.cache, delete, db.blockSize, db.valueSize, db.compression)
 			if err != nil {
 				log.Println("error merging into", db.directory, "into l1:", err)
 				break
@@ -118,7 +118,7 @@ func (db *DB) mergeLowerLevels() {
 		}
 		//tm := time.Now()
 		//fmt.Println("merging level", i, "into", i+1)
-		err = merge.Merge(old, files, db.cache, delete, db.opt)
+		err = merge.Merge(old, files, db.cache, delete, db.blockSize, db.valueSize, db.compression)
 		if err != nil {
 			log.Println("error merging into", db.directory, "into l1:", err)
 			break

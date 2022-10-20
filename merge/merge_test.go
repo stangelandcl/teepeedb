@@ -24,10 +24,7 @@ func E[T any](x T, err error) T {
 
 func TestNoOverlap(t *testing.T) {
 	cache := reader.NewCache(256 * 1024 * 1024 / 4096)
-	opt := writer.NewOpt()
-	opt.BlockSize = 16384
-	opt.Compressed = true
-	w := E(writer.NewFile("test.old.db", opt))
+	w := E(writer.NewFile("test.old.db", 16384, -1, shared.Lz4))
 
 	count := 100_000
 	kv := shared.KV{}
@@ -43,7 +40,7 @@ func TestNoOverlap(t *testing.T) {
 	}
 	w.Close()
 
-	w = E(writer.NewFile("test.new.db", opt))
+	w = E(writer.NewFile("test.new.db", 16384, -1, shared.Lz4))
 
 	var err error
 	count = 100_000
@@ -60,12 +57,12 @@ func TestNoOverlap(t *testing.T) {
 	}
 	w.Close()
 
-	err = Merge("test.db", []string{"test.new.db", "test.old.db"}, cache, true, opt)
+	err = Merge("test.db", []string{"test.new.db", "test.old.db"}, cache, true, 16384, -1, shared.Lz4)
 	if err != nil {
 		panic(err)
 	}
 
-	w = E(writer.NewFile("test.new.db", opt))
+	w = E(writer.NewFile("test.new.db", 16384, -1, shared.Lz4))
 	count = 100_000
 	kv = shared.KV{}
 	for i := count * 10; i < count*11; i++ {
@@ -80,7 +77,7 @@ func TestNoOverlap(t *testing.T) {
 	}
 	w.Close()
 
-	err = Merge("test.db", []string{"test.new.db", "test.db"}, cache, true, opt)
+	err = Merge("test.db", []string{"test.new.db", "test.db"}, cache, true, 16384, -1, shared.Lz4)
 	if err != nil {
 		panic(err)
 	}
@@ -109,10 +106,7 @@ func TestNoOverlap(t *testing.T) {
 
 func TestMerge(t *testing.T) {
 	cache := reader.NewCache(256 * 1024 * 1024 / 4096)
-	opt := writer.NewOpt()
-	opt.BlockSize = 16384
-	opt.Compressed = true
-	w := E(writer.NewFile("test.old.db", opt))
+	w := E(writer.NewFile("test.old.db", 16384, -1, shared.Lz4))
 
 	var err error
 	tm := time.Now()
@@ -135,7 +129,7 @@ func TestMerge(t *testing.T) {
 	}
 	fmt.Println("wrote", count, "in", time.Since(tm))
 
-	w = E(writer.NewFile("test.new.db", opt))
+	w = E(writer.NewFile("test.new.db", 16384, -1, shared.Lz4))
 
 	tm = time.Now()
 	for i := 0; i < 500_000; i++ {
@@ -342,7 +336,7 @@ func TestMerge(t *testing.T) {
 
 	tm = time.Now()
 
-	err = Merge("test.db.tmp", []string{"test.new.db", "test.old.db"}, cache, true, opt)
+	err = Merge("test.db.tmp", []string{"test.new.db", "test.old.db"}, cache, true, 16384, -1, shared.Lz4)
 	if err != nil {
 		panic(err)
 	}

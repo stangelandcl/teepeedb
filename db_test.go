@@ -1,4 +1,4 @@
-package db
+package teepeedb
 
 import (
 	"encoding/binary"
@@ -19,7 +19,7 @@ func E[T any](x T, err error) T {
 }
 
 func TestDB(t *testing.T) {
-	db := E(Open("test.db", NewOpt().WithCacheSize(256*1024*1024)))
+	db := E(Open("test.db", WithCacheSize(256*1024*1024)))
 	defer db.Close()
 
 	var err error

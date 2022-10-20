@@ -11,9 +11,7 @@ import (
 )
 
 func TestWrite(t *testing.T) {
-	opt := NewOpt()
-	opt.BlockSize = 16384
-	f, err := NewFile("test.db", opt)
+	f, err := NewFile("test.db", 16384, -1, shared.Raw)
 	if err != nil {
 		panic(err)
 	}
@@ -38,8 +36,7 @@ func TestWrite(t *testing.T) {
 	fs, _ := os.Stat("test.db")
 	fmt.Println("uncompressed", fs.Size(), "in", time.Since(tm))
 
-	opt.Compressed = true
-	f, err = NewFile("test.db", opt)
+	f, err = NewFile("test.db", 16384, -1, shared.Lz4)
 	if err != nil {
 		panic(err)
 	}

@@ -28,7 +28,7 @@ func NewFile(filename string, cache Cache) (File, error) {
 	r.f = f
 
 	buf := f.Bytes
-	compType := shared.CompressType(buf[len(buf)-17])
+	compType := shared.Compression(buf[len(buf)-17])
 	switch compType {
 	case shared.Raw:
 		r.blockReader, err = NewRaw(buf)

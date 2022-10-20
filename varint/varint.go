@@ -1,6 +1,15 @@
 package varint
 
+import "math/bits"
+
 func Len(x int) int {
+	// protobuf does this calculation. 6.5 times faster than LenSlow
+	// 22 ms per 100 million vs 130 ms / 100 million
+	bits := 63 ^ bits.LeadingZeros64(uint64(x)|1)
+	return (bits*9 + 73) / 64
+}
+
+func LenSlow(x int) int {
 	n := 0
 	for {
 		x >>= 7
