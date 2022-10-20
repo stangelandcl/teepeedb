@@ -36,10 +36,6 @@ type DB struct {
 	cache       reader.Cache
 }
 
-type Cursor struct {
-	merge.Cursor
-}
-
 const (
 	// no values greater or equal to key exist
 	NotFound = reader.NotFound
@@ -113,7 +109,7 @@ func (db *DB) Cursor() (Cursor, error) {
 
 	c := Cursor{}
 	var err error
-	c.Cursor, err = db.reader.Cursor()
+	c.m, err = db.reader.Cursor()
 	return c, err
 }
 

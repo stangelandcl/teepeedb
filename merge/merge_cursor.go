@@ -102,7 +102,7 @@ func (c *Cursor) move(kv *shared.KV, order int, dir reader.Move) (bool, error) {
 	return true, nil
 }
 
-func (c *Cursor) Lookup(kv *shared.KV) (bool, error) {
+func (c *Cursor) Get(kv *shared.KV) (bool, error) {
 	c.heap.Values = nil
 	for _, cur := range c.cursors {
 		tmp := *kv

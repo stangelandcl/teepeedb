@@ -30,11 +30,11 @@ func NewReader(files []string, cache reader.Cache) (*Reader, error) {
 	return r, nil
 }
 
-func (r *Reader) Cursor() (Cursor, error) {
+func (r *Reader) Cursor() (*Cursor, error) {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	c := Cursor{
+	c := &Cursor{
 		reader: r,
 	}
 	for _, f := range r.files {

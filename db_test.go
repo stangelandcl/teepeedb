@@ -6,9 +6,6 @@ import (
 	"log"
 	"testing"
 	"time"
-
-	"github.com/stangelandcl/teepeedb/reader"
-	"github.com/stangelandcl/teepeedb/shared"
 )
 
 func E[T any](x T, err error) T {
@@ -72,7 +69,7 @@ func TestDB(t *testing.T) {
 	c := E(db.Cursor())
 	defer c.Close()
 
-	kv := shared.KV{}
+	kv := KV{}
 	i := uint32(0)
 	more := E(c.First(&kv))
 	for more {
@@ -87,7 +84,7 @@ func TestDB(t *testing.T) {
 	fmt.Println("iterated", i, "in", time.Since(tm))
 
 	kv.Key = binary.BigEndian.AppendUint32(nil, uint32(25_578))
-	if E(c.Find(&kv)) == reader.Found {
+	if E(c.Find(&kv)) == Found {
 		fmt.Println("found", binary.BigEndian.Uint32(kv.Value))
 
 		if E(c.Next(&kv)) {
@@ -99,7 +96,7 @@ func TestDB(t *testing.T) {
 	}
 
 	kv.Key = binary.BigEndian.AppendUint32(nil, uint32(25_578))
-	if E(c.Find(&kv)) == reader.Found {
+	if E(c.Find(&kv)) == Found {
 		fmt.Println("found", binary.BigEndian.Uint32(kv.Value))
 
 		if E(c.Previous(&kv)) {
@@ -193,7 +190,7 @@ func TestExample(t *testing.T) {
 	// after a merge or write happened to get the newest data
 	defer c.Close()
 
-	kv := shared.KV{}
+	kv := KV{}
 	i := uint32(0)
 	more, err := c.First(&kv)
 	if err != nil {

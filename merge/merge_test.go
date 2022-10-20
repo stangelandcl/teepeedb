@@ -209,7 +209,7 @@ func TestMerge(t *testing.T) {
 	for i := uint32(0); i < count; i++ {
 		binary.BigEndian.PutUint32(buf, uint32(i))
 		kv.Key = buf
-		if E(c.Lookup(&kv)) {
+		if E(c.Get(&kv)) {
 			k := binary.BigEndian.Uint32(kv.Key)
 			v := binary.BigEndian.Uint32(kv.Value)
 			if i < 500_000 && v != math.MaxUint32 {
@@ -252,7 +252,7 @@ func TestMerge(t *testing.T) {
 	for _, id := range ids[:1_000_000] {
 		binary.BigEndian.PutUint32(buf, uint32(id))
 		kv.Key = buf
-		if E(c.Lookup(&kv)) {
+		if E(c.Get(&kv)) {
 			k := binary.BigEndian.Uint32(kv.Key)
 			v := binary.BigEndian.Uint32(kv.Value)
 			if id < 500_000 && v != math.MaxUint32 {
@@ -276,7 +276,7 @@ func TestMerge(t *testing.T) {
 	for _, id := range ids[:1_000_000] {
 		binary.BigEndian.PutUint32(buf, uint32(id))
 		kv.Key = buf
-		found := E(c.Lookup(&kv))
+		found := E(c.Get(&kv))
 		if found {
 			k := binary.BigEndian.Uint32(kv.Key)
 			v := binary.BigEndian.Uint32(kv.Value)
