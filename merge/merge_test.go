@@ -57,10 +57,19 @@ func TestNoOverlap(t *testing.T) {
 	}
 	w.Close()
 
-	err = Merge("test.db", []string{"test.new.db", "test.old.db"}, cache, true, 16384, -1, shared.Lz4)
+	m, err := NewMerger("test.db", []string{"test.new.db", "test.old.db"}, cache, true, 16384, -1, shared.Lz4)
 	if err != nil {
 		panic(err)
 	}
+	err = m.Run()
+	if err != nil {
+		panic(err)
+	}
+	err = m.Commit()
+	if err != nil {
+		panic(err)
+	}
+	m.Close()
 
 	w = E(writer.NewFile("test.new.db", 16384, -1, shared.Lz4))
 	count = 100_000
@@ -77,10 +86,19 @@ func TestNoOverlap(t *testing.T) {
 	}
 	w.Close()
 
-	err = Merge("test.db", []string{"test.new.db", "test.db"}, cache, true, 16384, -1, shared.Lz4)
+	m, err = NewMerger("test.db", []string{"test.new.db"}, cache, true, 16384, -1, shared.Lz4)
 	if err != nil {
 		panic(err)
 	}
+	err = m.Run()
+	if err != nil {
+		panic(err)
+	}
+	err = m.Commit()
+	if err != nil {
+		panic(err)
+	}
+	m.Close()
 
 	r := E(NewReader([]string{"test.db"}, cache))
 
@@ -336,11 +354,19 @@ func TestMerge(t *testing.T) {
 
 	tm = time.Now()
 
-	err = Merge("test.db.tmp", []string{"test.new.db", "test.old.db"}, cache, true, 16384, -1, shared.Lz4)
+	m, err := NewMerger("test.db.tmp", []string{"test.new.db", "test.old.db"}, cache, true, 16384, -1, shared.Lz4)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("merged in", time.Since(tm))
+	err = m.Run()
+	if err != nil {
+		panic(err)
+	}
+	err = m.Commit()
+	if err != nil {
+		panic(err)
+	}
+	m.Close()
 
 	r.Close()
 	r = E(NewReader([]string{"test.db.tmp"}, cache))

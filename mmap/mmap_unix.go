@@ -61,7 +61,7 @@ func mmap(len int, inprot, inflags, fd uintptr, off int64) ([]byte, error) {
 	err = unix.Madvise(b, syscall.MADV_RANDOM)
 	if err != nil && err != syscall.ENOSYS {
 		// Ignore not implemented error in kernel because it still works.
-		return nil, fmt.Errorf("mmap madvise: %s", err)
+		return nil, fmt.Errorf("teepeedb: mmap madvise: %s", err)
 	}
 	return b, nil
 }

@@ -53,21 +53,10 @@ func (db *DB) mergeLoop() {
 			//log.Println("merging", len(files), "files in", db.directory)
 			delete := !db.hasLowerLevel(2)
 
-			//log.Println("merging", files, "->", l1)
-			//tm := time.Now()
-			//fmt.Println("merging", len(files), "files ->", l1)
-			err = merge.Merge(l1, files, db.cache, delete, db.blockSize, db.valueSize, db.compression)
+			err = db.merge(l1, files, delete)
 			if err != nil {
 				log.Println("error merging into", db.directory, "into l1:", err)
 				break
-			}
-			//log.Println("merged", len(files), "in", db.directory, "in", time.Since(tm))
-
-			files, _ = filepath.Glob(fmt.Sprint(db.directory, "/", "*.tmp"))
-			for _, f := range files {
-				if !strings.Contains(f, "/l0.") {
-					fmt.Println("still have tmp", f)
-				}
 			}
 
 			db.mergeLowerLevels()
@@ -116,15 +105,34 @@ func (db *DB) mergeLowerLevels() {
 		if err == nil {
 			files = append(files, old)
 		}
-		//tm := time.Now()
-		//fmt.Println("merging level", i, "into", i+1)
-		err = merge.Merge(old, files, db.cache, delete, db.blockSize, db.valueSize, db.compression)
+		err = db.merge(old, files, delete)
 		if err != nil {
 			log.Println("error merging into", db.directory, "into l1:", err)
 			break
 		}
-		//fmt.Println("merged", db.directory, "level", i, "into", i+1, "in", time.Since(tm))
 	}
+}
+
+func (db *DB) merge(dstfile string, files []string, delete bool) error {
+	m, err := merge.NewMerger(dstfile, files, db.cache, delete, db.blockSize, db.valueSize, db.compression)
+	if err != nil {
+		return err
+	}
+	err = m.Run()
+	if err != nil {
+		m.Close()
+		return err
+	}
+	func() {
+		db.mergeLock.Lock()
+		defer db.mergeLock.Unlock()
+
+		// lock during file renames so reader opening at the same time
+		// isn't trying to open as we are deleting
+		err = m.Commit()
+	}()
+	m.Close()
+	return err
 }
 
 func (db *DB) wakeMerger() {

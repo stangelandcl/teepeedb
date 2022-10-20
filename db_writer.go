@@ -14,12 +14,13 @@ type Writer struct {
 	filename string
 	w        *writer.File
 	last     []byte
+	closed   bool
 }
 
 // add in sorted order only
 func (w *Writer) Add(key, val []byte) error {
 	if bytes.Compare(w.last, key) >= 0 {
-		return fmt.Errorf("adding keys out of order. last: %v current: %v", w.last, key)
+		return fmt.Errorf("teepeedb: adding keys out of order. last: %v current: %v", w.last, key)
 	}
 	w.last = append(w.last[:0], key...)
 	kv := shared.KV{}
@@ -31,7 +32,7 @@ func (w *Writer) Add(key, val []byte) error {
 // add in sorted order only
 func (w *Writer) Delete(key []byte) error {
 	if bytes.Compare(w.last, key) >= 0 {
-		return fmt.Errorf("adding keys out of order. last: %v current: %v", w.last, key)
+		return fmt.Errorf("teepeedb: adding keys out of order. last: %v current: %v", w.last, key)
 	}
 	w.last = append(w.last[:0], key...)
 	kv := shared.KV{}
@@ -55,16 +56,21 @@ func (w *Writer) Commit() error {
 	// commit
 	err = os.Rename(w.filename+".tmp", w.filename)
 	if err == nil {
-		w.w = nil
+		w.w = nil                // so close knows it committed
+		err = w.db.resetReader() // so next open cursor sees changes
 		w.db.wakeMerger()
 	}
 	return err
 }
 
 func (w *Writer) Close() {
-	if w.w != nil {
+	if w.closed {
+		return
+	}
+	if w.w != nil { // not committed
 		w.w.Close()
 		os.Remove(w.filename + ".tmp")
 	}
 	w.db.writeLock.Unlock()
+	w.closed = true
 }

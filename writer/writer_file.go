@@ -45,7 +45,7 @@ func NewFile(filename string, blockSize, valueSize int, compression shared.Compr
 	default:
 		f.Close()
 		os.Remove(filename)
-		return nil, fmt.Errorf("unsupported compression: %v", compression)
+		return nil, fmt.Errorf("teepeedb: unsupported compression: %v", compression)
 	}
 	fw.block = NewBlock(blockSize, valueSize >= 0)
 	fw.indexes = append(fw.indexes, NewIndex(fw.blockSize))

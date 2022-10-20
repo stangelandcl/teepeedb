@@ -2,6 +2,7 @@ package merge
 
 import (
 	"encoding/binary"
+	"fmt"
 	"log"
 	"os"
 	"sort"
@@ -22,28 +23,41 @@ type merger struct {
 // files in order newest to oldest
 // hardDelete means remove from file instead of inserting a delete tombstone
 // fixedValueSize < 0 == variable size
-func newMerger(dstfile string, files []string, cache reader.Cache, hardDelete bool, blockSize, valueSize int, compression shared.Compression) (merger, error) {
+func NewMerger(
+	dstfile string,
+	files []string,
+	cache reader.Cache,
+	hardDelete bool,
+	blockSize, valueSize int,
+	compression shared.Compression) (merger, error) {
+	if len(files) == 0 {
+		return merger{}, fmt.Errorf("teepeedb: no files to merge")
+	}
 	w := merger{
 		files:   files,
 		dstfile: dstfile,
 	}
-	r, err := NewReader(files, cache)
-	if err != nil {
-		return w, err
-	}
-	f, err := writer.NewFile(dstfile+".tmp", blockSize, valueSize, compression)
-	if err != nil {
-		r.Close()
-		return w, err
+	var err error
+	if len(files) > 1 {
+		w.r, err = NewReader(files, cache)
+		if err != nil {
+			return w, err
+		}
+		w.w, err = writer.NewFile(dstfile+".tmp", blockSize, valueSize, compression)
+		if err != nil {
+			w.r.Close()
+			return w, err
+		}
 	}
 
-	w.r = r
-	w.w = f
 	w.delete = hardDelete
 	return w, nil
 }
 
 func (w *merger) Run() error {
+	if len(w.files) == 1 {
+		return nil
+	}
 	c, err := w.r.Cursor()
 	if err != nil {
 		return err
@@ -82,23 +96,21 @@ func (w *merger) Run() error {
 	return nil
 }
 
-func (w *merger) Close() {
-	w.r.Close()
-
-	// if failure
+func (w *merger) Commit() error {
 	if w.w != nil {
-		w.w.Close()
-		os.Remove(w.dstfile + ".tmp")
-		return
+		return fmt.Errorf("teepeedb: can't commit because Run() failed")
 	}
 
-	// success
-
-	err := os.Rename(w.dstfile+".tmp", w.dstfile)
+	var err error
+	if len(w.files) == 1 {
+		err = os.Rename(w.files[0], w.dstfile)
+	} else {
+		err = os.Rename(w.dstfile+".tmp", w.dstfile)
+	}
 	if err != nil {
 		os.Remove(w.dstfile + ".tmp")
 		log.Println("merge failed", w.dstfile, err)
-		return
+		return err
 	}
 
 	// remove in reverse order so LSM tree is never in an invalid state
@@ -109,20 +121,19 @@ func (w *merger) Close() {
 			os.Remove(w.files[i])
 		}
 	}
+	return nil
 }
 
-func Merge(dstfile string, files []string, cache reader.Cache, hardDelete bool, blockSize, valueSize int, compression shared.Compression) error {
-	if len(files) == 0 {
-		return nil
+func (w *merger) Close() {
+	if w.r != nil {
+		w.r.Close()
+		w.r = nil
 	}
-	if len(files) == 1 {
-		return os.Rename(files[0], dstfile)
+
+	// if failure
+	if w.w != nil {
+		w.w.Close()
+		os.Remove(w.dstfile + ".tmp")
+		w.w = nil
 	}
-	w, err := newMerger(dstfile, files, cache, hardDelete, blockSize, valueSize, compression)
-	if err != nil {
-		os.Remove(dstfile + ".tmp")
-		return err
-	}
-	defer w.Close()
-	return w.Run()
 }

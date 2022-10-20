@@ -18,10 +18,12 @@ type DB struct {
 	// one write at a time
 	writeLock sync.Mutex
 	// so opening a cursor and closing the reader don't overlap
-	readLock   sync.Mutex
+	readLock sync.Mutex
+	// so deleting old files from merge doesn't coincide with opening
+	// a new reader on those files
+	mergeLock  sync.Mutex
 	counter    int64
 	mergerChan chan int
-	cache      reader.Cache
 	wg         sync.WaitGroup
 	reader     *merge.Reader
 	done       bool
@@ -30,6 +32,7 @@ type DB struct {
 	compression shared.Compression
 	blockSize   int
 	valueSize   int
+	cache       reader.Cache
 }
 
 type Cursor struct {
@@ -46,7 +49,6 @@ const (
 )
 
 func Open(directory string, opts ...Opt) (*DB, error) {
-
 	err := os.MkdirAll(directory, 0755)
 	if err != nil {
 		return nil, err
@@ -74,26 +76,33 @@ func Open(directory string, opts ...Opt) (*DB, error) {
 }
 
 func (db *DB) resetReader() error {
-	matches, err := filepath.Glob(fmt.Sprintf("%v/*.lsm", db.directory))
-	if err != nil {
-		return err
-	}
+	var r *merge.Reader
+	err := func() error {
+		// lock so merger can't delete files while we are opening them
+		db.mergeLock.Lock()
+		defer db.mergeLock.Unlock()
 
-	r, err := merge.NewReader(matches, db.cache)
-	if err != nil {
-		return err
-	}
-
-	func() {
-		db.readLock.Lock()
-		defer db.readLock.Unlock()
-		old := db.reader
-		// atomic so
-		db.reader = r
-		if old != nil {
-			old.Close()
+		matches, err := filepath.Glob(fmt.Sprintf("%v/*.lsm", db.directory))
+		if err != nil {
+			return err
 		}
+
+		r, err = merge.NewReader(matches, db.cache)
+		return err
 	}()
+	if err != nil {
+		return err
+	}
+
+	db.readLock.Lock()
+	defer db.readLock.Unlock()
+	old := db.reader
+	// atomic so
+	db.reader = r
+	if old != nil {
+		old.Close()
+	}
+
 	return nil
 }
 
@@ -111,7 +120,7 @@ func (db *DB) Write() (Writer, error) {
 	db.writeLock.Lock()
 	if db.done {
 		db.writeLock.Unlock()
-		return Writer{}, fmt.Errorf("database closed")
+		return Writer{}, fmt.Errorf("teepeedb: database closed")
 	}
 
 	c := atomic.AddInt64(&db.counter, 1) // TODO: reset counter to zero after merge if empty

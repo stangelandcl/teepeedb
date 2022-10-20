@@ -35,7 +35,7 @@ func NewFile(filename string, cache Cache) (File, error) {
 	case shared.Lz4:
 		r.blockReader, err = NewLz4(buf, cache)
 	default:
-		err = fmt.Errorf("invalid compresstype: %v", compType)
+		err = fmt.Errorf("teepeedb: invalid compresstype: %v", compType)
 	}
 	if err != nil {
 		f.Close()
