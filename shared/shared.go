@@ -28,6 +28,7 @@ type KV struct {
 
 type FileFooter struct {
 	BlockSize         int
+	Compression       Compression
 	DataBlocks        int
 	DataBytes         int
 	Deletes           int
@@ -36,7 +37,6 @@ type FileFooter struct {
 	Inserts           int
 	LastIndexPosition int
 	ValueSize         int
-	Compression       Compression
 }
 
 func (h *FileFooter) Marshal() []byte {
@@ -44,6 +44,8 @@ func (h *FileFooter) Marshal() []byte {
 	i := 0
 	binary.LittleEndian.PutUint64(buf[i:], uint64(h.BlockSize))
 	i += 8
+	buf[i] = byte(h.Compression)
+	i++
 	binary.LittleEndian.PutUint64(buf[i:], uint64(h.DataBlocks))
 	i += 8
 	binary.LittleEndian.PutUint64(buf[i:], uint64(h.DataBytes))
@@ -60,8 +62,6 @@ func (h *FileFooter) Marshal() []byte {
 	i += 8
 	binary.LittleEndian.PutUint64(buf[i:], uint64(h.ValueSize))
 	i += 8
-	buf[i] = byte(h.Compression)
-	i++
 	return buf
 }
 
@@ -69,6 +69,8 @@ func (h *FileFooter) Unmarshal(buf []byte) {
 	i := 0
 	h.BlockSize = int(binary.LittleEndian.Uint64(buf[i:]))
 	i += 8
+	h.Compression = Compression(buf[i])
+	i++
 	h.DataBlocks = int(binary.LittleEndian.Uint64(buf[i:]))
 	i += 8
 	h.DataBytes = int(binary.LittleEndian.Uint64(buf[i:]))
@@ -85,6 +87,4 @@ func (h *FileFooter) Unmarshal(buf []byte) {
 	i += 8
 	h.ValueSize = int(binary.LittleEndian.Uint64(buf[i:]))
 	i += 8
-	h.Compression = Compression(buf[i])
-	i++
 }
