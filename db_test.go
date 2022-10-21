@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"os"
 	"testing"
 	"time"
 )
@@ -16,6 +17,7 @@ func E[T any](x T, err error) T {
 }
 
 func TestDB(t *testing.T) {
+	os.RemoveAll("test.db")
 	db := E(Open("test.db", WithCacheSize(256*1024*1024)))
 	defer db.Close()
 

@@ -11,6 +11,7 @@ import (
 )
 
 func TestWrite(t *testing.T) {
+	os.RemoveAll("test.db")
 	f, err := NewFile("test.db", 16384, -1, shared.Raw)
 	if err != nil {
 		panic(err)

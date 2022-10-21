@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"os"
 	"sort"
 	"testing"
 	"time"
@@ -23,6 +24,10 @@ func E[T any](x T, err error) T {
 }
 
 func TestNoOverlap(t *testing.T) {
+	os.RemoveAll("test.old.db")
+	os.RemoveAll("test.new.db")
+	os.RemoveAll("test.db")
+	os.RemoveAll("test.db.tmp")
 	cache := reader.NewCache(256 * 1024 * 1024 / 4096)
 	w := E(writer.NewFile("test.old.db", 16384, -1, shared.Lz4))
 
@@ -123,6 +128,9 @@ func TestNoOverlap(t *testing.T) {
 }
 
 func TestMerge(t *testing.T) {
+	os.RemoveAll("test.old.db")
+	os.RemoveAll("test.new.db")
+	os.RemoveAll("test.db")
 	cache := reader.NewCache(256 * 1024 * 1024 / 4096)
 	w := E(writer.NewFile("test.old.db", 16384, -1, shared.Lz4))
 
@@ -221,7 +229,7 @@ func TestMerge(t *testing.T) {
 			log.Panicln("missing find", i)
 		}
 	}
-	fmt.Println("lookup sorted", count, "in", time.Since(tm))
+	fmt.Println("get all sorted", count, "in", time.Since(tm))
 
 	tm = time.Now()
 	for i := uint32(0); i < count; i++ {
@@ -239,7 +247,7 @@ func TestMerge(t *testing.T) {
 			log.Panicln("missing find", i)
 		}
 	}
-	fmt.Println("find sorted", count, "in", time.Since(tm))
+	fmt.Println("find all sorted", count, "in", time.Since(tm))
 
 	ids := make([]uint32, count)
 	for i = 0; i < count; i++ {
@@ -264,7 +272,7 @@ func TestMerge(t *testing.T) {
 			log.Panicln("missing find", id)
 		}
 	}
-	fmt.Println("found rand", 1_000_000, "in", time.Since(tm))
+	fmt.Println("get rand", 1_000_000, "in", time.Since(tm))
 
 	rand.Shuffle(len(ids), func(i, j int) {
 		ids[i], ids[j] = ids[j], ids[i]
@@ -289,7 +297,7 @@ func TestMerge(t *testing.T) {
 			log.Panicln("missing find", id)
 		}
 	}
-	fmt.Println("rand sorted", 1_000_000, "in", time.Since(tm))
+	fmt.Println("get rand sorted", 1_000_000, "in", time.Since(tm))
 
 	tm = time.Now()
 	for i = 0; i < count; i++ {
@@ -307,7 +315,7 @@ func TestMerge(t *testing.T) {
 			log.Panicln("missing find", i)
 		}
 	}
-	fmt.Println("moveto sorted", i, "in", time.Since(tm))
+	fmt.Println("find all sorted", i, "in", time.Since(tm))
 
 	rand.Shuffle(len(ids), func(i, j int) {
 		ids[i], ids[j] = ids[j], ids[i]
@@ -327,7 +335,7 @@ func TestMerge(t *testing.T) {
 			log.Panicln("missing find", id)
 		}
 	}
-	fmt.Println("moveto unsorted", 1_000_000, "in", time.Since(tm))
+	fmt.Println("find rand unsorted", 1_000_000, "in", time.Since(tm))
 
 	rand.Shuffle(len(ids), func(i, j int) {
 		ids[i], ids[j] = ids[j], ids[i]
@@ -350,7 +358,7 @@ func TestMerge(t *testing.T) {
 			log.Panicln("missing find", id)
 		}
 	}
-	fmt.Println("moveto rand sorted", 1_000_000, "in", time.Since(tm))
+	fmt.Println("find rand sorted", 1_000_000, "in", time.Since(tm))
 
 	tm = time.Now()
 

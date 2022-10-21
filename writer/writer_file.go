@@ -14,29 +14,24 @@ type File struct {
 	f           *Buffered
 	blockWriter BlockWriter
 	block       Block
-	blockSize   int
-	valueSize   int
+	footer      shared.FileFooter
 
-	indexSize         int
-	indexCount        int
-	dataSize          int
-	dataCount         int
-	lastIndexPosition int
-	flushed           bool
-	compression       shared.Compression
+	flushed bool
 }
 
 func NewFile(filename string, blockSize, valueSize int, compression shared.Compression) (*File, error) {
 	fw := &File{
-		blockSize: blockSize,
-		valueSize: valueSize,
+		footer: shared.FileFooter{
+			BlockSize:   blockSize,
+			ValueSize:   valueSize,
+			Compression: compression,
+		},
 	}
 	f, err := NewBuffered(filename)
 	if err != nil {
 		return nil, err
 	}
 	fw.f = f
-	fw.compression = compression
 	switch compression {
 	case shared.Raw:
 		fw.blockWriter = NewRaw(fw.f)
@@ -48,12 +43,12 @@ func NewFile(filename string, blockSize, valueSize int, compression shared.Compr
 		return nil, fmt.Errorf("teepeedb: unsupported compression: %v", compression)
 	}
 	fw.block = NewBlock(blockSize, valueSize >= 0)
-	fw.indexes = append(fw.indexes, NewIndex(fw.blockSize))
+	fw.indexes = append(fw.indexes, NewIndex(fw.footer.BlockSize))
 	return fw, nil
 }
 
 func (f *File) Len() int {
-	return f.dataSize + f.indexSize
+	return f.footer.DataBytes + f.footer.IndexBytes
 }
 
 func (f *File) flush() error {
@@ -64,8 +59,8 @@ func (f *File) flush() error {
 	}
 
 	if err == nil {
-		f.dataSize += f.f.Position - pos
-		f.dataCount++
+		f.footer.DataBytes += f.f.Position - pos
+		f.footer.DataBlocks++
 		key := info.FirstKey
 		iInfo := shared.IndexValue{
 			LastKey:  info.LastKey,
@@ -84,9 +79,9 @@ func (f *File) flush() error {
 		if err == io.EOF {
 			continue // already flushed
 		}
-		f.indexSize += f.f.Position - pos
-		f.indexCount++
-		f.lastIndexPosition = pos
+		f.footer.IndexBytes += f.f.Position - pos
+		f.footer.IndexBlocks++
+		f.footer.LastIndexPosition = pos
 
 		iInfo := shared.IndexValue{
 			LastKey:  info.LastKey,
@@ -99,11 +94,14 @@ func (f *File) flush() error {
 		}
 	}
 
-	vi := make([]byte, 17)
-	vi[0] = byte(f.compression)
-	binary.LittleEndian.PutUint64(vi[1:], uint64(f.valueSize))
-	binary.LittleEndian.PutUint64(vi[9:], uint64(f.lastIndexPosition))
-	_, err = f.f.Write(vi)
+	h := f.footer.Marshal()
+	_, err = f.f.Write(h)
+	if err != nil {
+		return err
+	}
+	footerSize := make([]byte, 4)
+	binary.LittleEndian.PutUint32(footerSize, uint32(len(h)))
+	_, err = f.f.Write(footerSize)
 	if err != nil {
 		return err
 	}
@@ -126,6 +124,12 @@ func (f *File) Close() error {
 }
 
 func (f *File) Add(kv *shared.KV) error {
+	if kv.Delete {
+		f.footer.Deletes++
+	} else {
+		f.footer.Inserts++
+	}
+
 	if f.block.HasSpace(len(kv.Key), len(kv.Value)) {
 		f.block.Add(kv)
 		return nil
@@ -136,8 +140,8 @@ func (f *File) Add(kv *shared.KV) error {
 	if err != nil {
 		return err
 	}
-	f.dataSize += f.f.Position - pos
-	f.dataCount++
+	f.footer.DataBytes += f.f.Position - pos
+	f.footer.DataBlocks++
 
 	key := info.FirstKey
 	iInfo := shared.IndexValue{
@@ -165,9 +169,9 @@ func (f *File) addToIndex(key []byte, iInfo shared.IndexValue, i int) error {
 		if err != nil {
 			return err
 		}
-		f.indexSize += f.f.Position - pos
-		f.indexCount++
-		f.lastIndexPosition = pos
+		f.footer.IndexBytes += f.f.Position - pos
+		f.footer.IndexBlocks++
+		f.footer.LastIndexPosition = pos
 
 		f.indexes[i].Add(key, iInfo)
 		key = info.FirstKey
@@ -176,7 +180,7 @@ func (f *File) addToIndex(key []byte, iInfo shared.IndexValue, i int) error {
 		iInfo.Type = shared.IndexBlock
 
 		if i == len(f.indexes)-1 {
-			f.indexes = append(f.indexes, NewIndex(f.blockSize))
+			f.indexes = append(f.indexes, NewIndex(f.footer.BlockSize))
 		}
 	}
 	return nil

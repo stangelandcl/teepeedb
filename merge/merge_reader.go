@@ -5,12 +5,17 @@ import (
 	"sync"
 
 	"github.com/stangelandcl/teepeedb/reader"
+	"github.com/stangelandcl/teepeedb/shared"
 )
 
 type Reader struct {
 	files   []reader.File
 	mutex   sync.Mutex
 	cursors int
+}
+
+type Stats struct {
+	Footers []shared.FileFooter
 }
 
 // files in sorted order. newest first
@@ -28,6 +33,14 @@ func NewReader(files []string, cache reader.Cache) (*Reader, error) {
 		r.files = append(r.files, fr)
 	}
 	return r, nil
+}
+
+func (r *Reader) Stats() Stats {
+	s := Stats{}
+	for _, file := range r.files {
+		s.Footers = append(s.Footers, file.Footer())
+	}
+	return s
 }
 
 func (r *Reader) Cursor() (*Cursor, error) {

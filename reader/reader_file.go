@@ -8,10 +8,9 @@ import (
 )
 
 type File struct {
-	f                  Mmap
-	blockReader        BlockReader
-	firstIndexPosition int
-	fixedSize          int
+	f           Mmap
+	blockReader BlockReader
+	footer      shared.FileFooter
 }
 
 type BlockReader interface {
@@ -26,32 +25,34 @@ func NewFile(filename string, cache Cache) (File, error) {
 		return r, err
 	}
 	r.f = f
-
 	buf := f.Bytes
-	compType := shared.Compression(buf[len(buf)-17])
-	switch compType {
+	footerSize := binary.LittleEndian.Uint32(buf[len(buf)-4:])
+	r.footer.Unmarshal(buf[len(buf)-4-int(footerSize):])
+	switch r.footer.Compression {
 	case shared.Raw:
 		r.blockReader, err = NewRaw(buf)
 	case shared.Lz4:
 		r.blockReader, err = NewLz4(buf, cache)
 	default:
-		err = fmt.Errorf("teepeedb: invalid compresstype: %v", compType)
+		err = fmt.Errorf("teepeedb: invalid compresstype: %v", r.footer.Compression)
 	}
 	if err != nil {
 		f.Close()
 		return File{}, err
 	}
-	r.fixedSize = int(int64(binary.LittleEndian.Uint64(buf[len(buf)-16:])))
-	r.firstIndexPosition = int(int64(binary.LittleEndian.Uint64(buf[len(buf)-8:])))
 	return r, nil
+}
+
+func (r *File) Footer() shared.FileFooter {
+	return r.footer
 }
 
 func (r *File) Cursor() (*Cursor, error) {
 	c := &Cursor{
 		f:         r.blockReader,
-		fixedSize: r.fixedSize,
+		fixedSize: r.footer.ValueSize,
 	}
-	block, err := r.blockReader.ReadBlock(r.firstIndexPosition)
+	block, err := r.blockReader.ReadBlock(r.footer.LastIndexPosition)
 	if err != nil {
 		return nil, err
 	}

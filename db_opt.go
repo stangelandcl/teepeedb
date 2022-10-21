@@ -15,12 +15,16 @@ func NewCache(size int) Cache {
 	return reader.NewCache(size)
 }
 
+// cache for holding uncompressed blocks
+// only useful when reading compressed data
 func WithCache(cache Cache) Opt {
 	return func(db *DB) {
 		db.cache = cache
 	}
 }
 
+// cache size holding uncompressed blocks in bytes
+// only useful when reading compressed data
 func WithCacheSize(size int) Opt {
 	return func(db *DB) {
 		db.cache = NewCache(size)

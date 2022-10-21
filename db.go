@@ -36,6 +36,35 @@ type DB struct {
 	cache       reader.Cache
 }
 
+type Stats struct {
+	// number of data blocks
+	DataBlocks int
+	// total size of compressed data block bytes
+	DataBytes int
+	// number of deletes
+	Deletes int
+	// number of index blocks
+	IndexBlocks int
+	// total size of compressed index block bytes
+	IndexBytes int
+	// number of inserts
+	Inserts int
+}
+
+// estimated compressed size
+func (s Stats) Size() int {
+	return s.DataBytes + s.IndexBytes
+}
+
+// estimated counts: inserts - deletes >= 0
+func (s Stats) Count() int {
+	count := s.Inserts - s.Deletes
+	if count < 0 {
+		count = 0
+	}
+	return count
+}
+
 const (
 	// no values greater or equal to key exist
 	NotFound = reader.NotFound
@@ -70,6 +99,23 @@ func Open(directory string, opts ...Opt) (*DB, error) {
 	go db.mergeLoop()
 
 	return db, nil
+}
+
+func (db *DB) Stats() Stats {
+	db.readLock.Lock()
+	defer db.readLock.Unlock()
+
+	st := db.reader.Stats()
+	rs := Stats{}
+	for _, s := range st.Footers {
+		rs.DataBlocks += s.DataBlocks
+		rs.DataBytes += s.DataBytes
+		rs.Deletes += s.Deletes
+		rs.IndexBlocks += s.IndexBlocks
+		rs.IndexBytes += s.IndexBytes
+		rs.Inserts += s.Inserts
+	}
+	return rs
 }
 
 func (db *DB) resetReader() error {
