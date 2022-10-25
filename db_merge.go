@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/stangelandcl/teepeedb/merge"
+	"github.com/stangelandcl/teepeedb/internal/merge"
 )
 
 func (db *DB) hasLowerLevel(min int) bool {

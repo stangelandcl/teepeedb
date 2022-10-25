@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 
 	"github.com/pierrec/lz4/v4"
-	"github.com/stangelandcl/teepeedb/varint"
+	"github.com/stangelandcl/teepeedb/internal/varint"
 )
 
 type Lz4 struct {

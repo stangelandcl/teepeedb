@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/stangelandcl/teepeedb/shared"
-	"github.com/stangelandcl/teepeedb/varint"
+	"github.com/stangelandcl/teepeedb/internal/shared"
+	"github.com/stangelandcl/teepeedb/internal/varint"
 )
 
 type Block struct {

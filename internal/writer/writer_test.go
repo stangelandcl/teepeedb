@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stangelandcl/teepeedb/shared"
+	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 func TestWrite(t *testing.T) {

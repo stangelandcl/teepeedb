@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/stangelandcl/teepeedb/shared"
-	"github.com/stangelandcl/teepeedb/writer"
+	"github.com/stangelandcl/teepeedb/internal/shared"
+	"github.com/stangelandcl/teepeedb/internal/writer"
 )
 
 type Writer struct {

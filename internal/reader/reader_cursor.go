@@ -3,7 +3,7 @@ package reader
 import (
 	"fmt"
 
-	"github.com/stangelandcl/teepeedb/shared"
+	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 type Cursor struct {
@@ -39,7 +39,7 @@ func (c *Cursor) Move(dir Move, kv *shared.KV) (bool, error) {
 	return false, nil
 }
 
-func (c *Cursor) Find(kv *shared.KV) (int, error) {
+func (c *Cursor) Find(kv *shared.KV) (FindResult, error) {
 	if c.block.InRange(kv) {
 		return c.block.Find(kv, false), nil
 	}

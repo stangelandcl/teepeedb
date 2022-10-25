@@ -3,8 +3,8 @@ package reader
 import (
 	"bytes"
 
-	"github.com/stangelandcl/teepeedb/shared"
-	"github.com/stangelandcl/teepeedb/varint"
+	"github.com/stangelandcl/teepeedb/internal/shared"
+	"github.com/stangelandcl/teepeedb/internal/varint"
 )
 
 type Index struct {

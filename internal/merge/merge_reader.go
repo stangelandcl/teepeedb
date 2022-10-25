@@ -4,8 +4,8 @@ import (
 	"log"
 	"sync"
 
-	"github.com/stangelandcl/teepeedb/reader"
-	"github.com/stangelandcl/teepeedb/shared"
+	"github.com/stangelandcl/teepeedb/internal/reader"
+	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 type Reader struct {

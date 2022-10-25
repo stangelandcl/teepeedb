@@ -3,7 +3,7 @@ package reader
 import (
 	"os"
 
-	"github.com/stangelandcl/teepeedb/mmap"
+	"github.com/stangelandcl/teepeedb/internal/mmap"
 )
 
 type Mmap struct {

@@ -8,10 +8,10 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/stangelandcl/teepeedb/merge"
-	"github.com/stangelandcl/teepeedb/reader"
-	"github.com/stangelandcl/teepeedb/shared"
-	"github.com/stangelandcl/teepeedb/writer"
+	"github.com/stangelandcl/teepeedb/internal/merge"
+	"github.com/stangelandcl/teepeedb/internal/reader"
+	"github.com/stangelandcl/teepeedb/internal/shared"
+	"github.com/stangelandcl/teepeedb/internal/writer"
 )
 
 type DB struct {
@@ -64,15 +64,6 @@ func (s Stats) Count() int {
 	}
 	return count
 }
-
-const (
-	// no values greater or equal to key exist
-	NotFound = reader.NotFound
-	// exact match
-	Found = reader.Found
-	// found a value greater or equal to key
-	Partial = reader.Partial
-)
 
 func Open(directory string, opts ...Opt) (*DB, error) {
 	err := os.MkdirAll(directory, 0755)

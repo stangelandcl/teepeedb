@@ -1,6 +1,6 @@
 package reader
 
-import "github.com/stangelandcl/teepeedb/varint"
+import "github.com/stangelandcl/teepeedb/internal/varint"
 
 type Raw struct {
 	buf []byte

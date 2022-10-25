@@ -1,5 +1,5 @@
 all:
 	rm -rf test.db
 	go test
-	cd merge && go test
-	cd test && go test
+	cd internal/merge && go test
+	cd internal/test && go test

@@ -7,9 +7,9 @@ import (
 	"os"
 	"sort"
 
-	"github.com/stangelandcl/teepeedb/reader"
-	"github.com/stangelandcl/teepeedb/shared"
-	"github.com/stangelandcl/teepeedb/writer"
+	"github.com/stangelandcl/teepeedb/internal/reader"
+	"github.com/stangelandcl/teepeedb/internal/shared"
+	"github.com/stangelandcl/teepeedb/internal/writer"
 )
 
 type merger struct {

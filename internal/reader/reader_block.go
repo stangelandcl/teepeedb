@@ -5,19 +5,20 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"github.com/stangelandcl/teepeedb/shared"
-	"github.com/stangelandcl/teepeedb/varint"
+	"github.com/stangelandcl/teepeedb/internal/shared"
+	"github.com/stangelandcl/teepeedb/internal/varint"
 )
 
 type Move byte
+type FindResult int
 
 const (
 	// no values greater or equal to key exist
-	NotFound = 0
+	NotFound FindResult = iota
 	// exact match
-	Found = 1
+	Found
 	// found a value greater or equal to key
-	Partial = 2
+	FoundGreater
 )
 
 const (
@@ -49,7 +50,7 @@ func NewBlock(buf []byte, fixedValueSize int) Block {
 	return b
 }
 
-func (b *Block) Find(kv *shared.KV, back bool) int {
+func (b *Block) Find(kv *shared.KV, back bool) FindResult {
 	lo := int32(0)
 	hi := b.count - 1
 
@@ -88,10 +89,10 @@ func (b *Block) Find(kv *shared.KV, back bool) int {
 			b.idx--
 		}
 		b.read(kv)
-		return Partial
+		return FoundGreater
 	} else if b.idx < b.count {
 		b.read(kv)
-		return Partial
+		return FoundGreater
 	}
 	return NotFound
 }
@@ -118,6 +119,9 @@ func (b *Block) Len() int {
 }
 
 func (b *Block) InRange(kv *shared.KV) bool {
+	if len(b.buf) == 0 { // happens in Find() when nothing called before
+		return false
+	}
 	offset := int(binary.LittleEndian.Uint16(b.buf))
 	offset += int(b.count) * 2
 

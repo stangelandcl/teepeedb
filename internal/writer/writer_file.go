@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/stangelandcl/teepeedb/shared"
+	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 type File struct {

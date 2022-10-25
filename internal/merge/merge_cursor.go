@@ -3,8 +3,8 @@ package merge
 import (
 	"bytes"
 
-	"github.com/stangelandcl/teepeedb/reader"
-	"github.com/stangelandcl/teepeedb/shared"
+	"github.com/stangelandcl/teepeedb/internal/reader"
+	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 type Cursor struct {
@@ -121,7 +121,7 @@ func (c *Cursor) Get(kv *shared.KV) (bool, error) {
 // returns Found for exact match
 // Partial for found a value greater than key.
 // NotFound for no values >= key
-func (c *Cursor) Find(kv *shared.KV) (int, error) {
+func (c *Cursor) Find(kv *shared.KV) (reader.FindResult, error) {
 	c.heap.Values = nil
 	for i, cur := range c.cursors {
 		key := Position{
@@ -149,5 +149,5 @@ func (c *Cursor) Find(kv *shared.KV) (int, error) {
 	if found {
 		return reader.Found, nil
 	}
-	return reader.Partial, nil
+	return reader.FoundGreater, nil
 }

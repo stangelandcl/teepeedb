@@ -37,8 +37,8 @@ package merge
 import (
 	"bytes"
 
-	"github.com/stangelandcl/teepeedb/reader"
-	"github.com/stangelandcl/teepeedb/shared"
+	"github.com/stangelandcl/teepeedb/internal/reader"
+	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 type Position struct {

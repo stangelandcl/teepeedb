@@ -1,9 +1,29 @@
 package teepeedb
 
 import (
-	"github.com/stangelandcl/teepeedb/merge"
-	"github.com/stangelandcl/teepeedb/shared"
+	"github.com/stangelandcl/teepeedb/internal/merge"
+	"github.com/stangelandcl/teepeedb/internal/reader"
+	"github.com/stangelandcl/teepeedb/internal/shared"
 )
+
+type FindResult int
+
+const (
+	// no values greater or equal to key exist
+	NotFound FindResult = FindResult(reader.NotFound)
+	// exact match
+	Found FindResult = FindResult(reader.Found)
+	// found a value greater or equal to key
+	FoundGreater FindResult = FindResult(reader.FoundGreater)
+)
+
+func (r FindResult) Empty() bool {
+	return r == NotFound
+}
+
+func (r FindResult) Any() bool {
+	return r != NotFound
+}
 
 type Cursor struct {
 	m *merge.Cursor
@@ -107,12 +127,14 @@ func (c *Cursor) Last(kv *KV) (more bool, err error) {
 // returns Found for exact match
 // Partial for found a value greater than key.
 // NotFound for no values >= key
-func (c *Cursor) Find(kv *KV) (result int, err error) {
+func (c *Cursor) Find(kv *KV) (result FindResult, err error) {
 	tmp := shared.KV{
 		Key: kv.Key,
 	}
 
-	result, err = c.m.Find(&tmp)
+	var r reader.FindResult
+	r, err = c.m.Find(&tmp)
+	result = FindResult(r)
 	if err != nil || result == NotFound {
 		return
 	}
@@ -124,7 +146,7 @@ func (c *Cursor) Find(kv *KV) (result int, err error) {
 			result = NotFound
 			return
 		}
-		result = Partial
+		result = FoundGreater
 	}
 	kv.Key = tmp.Key
 	kv.Value = tmp.Value
