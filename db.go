@@ -174,6 +174,10 @@ func (db *DB) Write() (Writer, error) {
 }
 
 func (db *DB) Close() {
+	// allow double close
+	if db.reader == nil && db.mergerChan == nil {
+		return
+	}
 	db.done = true
 
 	if !db.writeLock.TryLock() {
@@ -185,6 +189,7 @@ func (db *DB) Close() {
 	close(db.mergerChan)
 	//fmt.Println("waiting to close for merger")
 	db.wg.Wait()
+	db.mergerChan = nil
 	//fmt.Println("closing")
 	db.reader.Close()
 	db.reader = nil
