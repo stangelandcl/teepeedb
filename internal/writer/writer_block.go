@@ -10,10 +10,11 @@ import (
 
 type Block struct {
 	body             []byte
-	offsets          []byte
+	offsets          []uint16
 	blockSize        int
 	upserts, deletes int
 	fixedSize        bool
+	total            []byte
 }
 
 type Stats struct {
@@ -22,8 +23,10 @@ type Stats struct {
 }
 
 type BlockWriter interface {
-	// writes block size + block parts
-	WriteBlock(blockParts ...[]byte) error
+	// block reader experts [uvarint len(offsets), offsets, body].
+	// also writes a block header for total length and possibly compresses one
+	// or more parts
+	WriteBlock(offsets []uint16, body []byte) error
 }
 
 func NewBlock(blockSize int, fixedSizeValue bool) Block {
@@ -48,7 +51,7 @@ func (b *Block) HasSpace(keylen, vallen int) bool {
 
 // use HasSpace() to check first
 func (b *Block) Add(kv *shared.KV) {
-	b.offsets = binary.LittleEndian.AppendUint16(b.offsets, uint16(len(b.body)))
+	b.offsets = append(b.offsets, uint16(len(b.body)))
 	delete := 0
 	if kv.Delete {
 		delete = 1
@@ -71,10 +74,7 @@ func (b *Block) Write(w BlockWriter) (stats Stats, err error) {
 		return
 	}
 
-	var sizes []byte
-	sizes = binary.AppendUvarint(sizes, uint64(len(b.offsets)/2)) // count of keys/offsets
-
-	err = w.WriteBlock(sizes, b.offsets, b.body)
+	err = w.WriteBlock(b.offsets, b.body)
 	if err != nil {
 		return
 	}
@@ -90,7 +90,7 @@ func (b *Block) Write(w BlockWriter) (stats Stats, err error) {
 }
 
 func (b *Block) readKey(idx int) []byte {
-	o := int(binary.LittleEndian.Uint16(b.offsets[idx*2:]))
+	o := int(b.offsets[idx])
 	ks := varint.Read(b.body, &o)
 	ks >>= 1 // don't care if it is delete
 	key := b.body[o : o+ks]

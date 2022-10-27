@@ -1,3 +1,9 @@
+Files in lz4 from https://github.com/pierrec/lz4 under their own BSD license
+Files in mmap from https://github.com/edsrzf/mmap-go with madvise call added with BSD license
+heap implementation modifed from go standard library https://cs.opensource.google/go/go with BSD license
+
+Modifications and otherwise:
+
 MIT License
 
 Copyright (c) 2022 Clayton Stangeland

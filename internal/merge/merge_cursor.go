@@ -24,15 +24,15 @@ func (c *Cursor) Close() {
 	}
 }
 
-func (c *Cursor) First(kv *shared.KV) (bool, error) {
+func (c *Cursor) First(kv *shared.KV) bool {
 	return c.end(kv, 1, reader.First)
 }
 
-func (c *Cursor) Last(kv *shared.KV) (bool, error) {
+func (c *Cursor) Last(kv *shared.KV) bool {
 	return c.end(kv, -1, reader.Last)
 }
 
-func (c *Cursor) end(kv *shared.KV, order int, start reader.Move) (bool, error) {
+func (c *Cursor) end(kv *shared.KV, order int, start reader.Move) bool {
 	c.heap.Values = nil
 	for i, cur := range c.cursors {
 		key := Position{
@@ -40,32 +40,29 @@ func (c *Cursor) end(kv *shared.KV, order int, start reader.Move) (bool, error) 
 			Index:  i,
 		}
 
-		found, err := key.Cursor.Move(start, &key.KV)
-		if err != nil {
-			return false, err
-		}
+		found := key.Cursor.Move(start, &key.KV)
 		if found {
 			c.heap.Values = append(c.heap.Values, key)
 		}
 	}
 	c.heap.Init(order)
 	if len(c.heap.Values) == 0 {
-		return false, nil
+		return false
 	}
 	key := &c.heap.Values[0]
 	*kv = key.KV
-	return true, nil
+	return true
 }
 
-func (c *Cursor) Next(kv *shared.KV) (bool, error) {
+func (c *Cursor) Next(kv *shared.KV) bool {
 	return c.move(kv, 1, reader.Next)
 }
 
-func (c *Cursor) Previous(kv *shared.KV) (bool, error) {
+func (c *Cursor) Previous(kv *shared.KV) bool {
 	return c.move(kv, -1, reader.Previous)
 }
 
-func (c *Cursor) move(kv *shared.KV, order int, dir reader.Move) (bool, error) {
+func (c *Cursor) move(kv *shared.KV, order int, dir reader.Move) bool {
 	last := c.heap.Pop()
 
 	// increment cursor for current key and for all older levels
@@ -75,10 +72,7 @@ func (c *Cursor) move(kv *shared.KV, order int, dir reader.Move) (bool, error) {
 		if bytes.Compare(key.KV.Key, last.KV.Key)*order > 0 {
 			break
 		}
-		found, err := key.Cursor.Move(dir, &key.KV)
-		if err != nil {
-			return false, err
-		}
+		found := key.Cursor.Move(dir, &key.KV)
 		if found {
 			c.heap.Fix(0)
 		} else {
@@ -86,42 +80,36 @@ func (c *Cursor) move(kv *shared.KV, order int, dir reader.Move) (bool, error) {
 		}
 	}
 
-	found, err := last.Cursor.Move(dir, &last.KV)
-	if err != nil {
-		return false, err
-	}
+	found := last.Cursor.Move(dir, &last.KV)
 	if found {
 		c.heap.Push(last)
 	}
 
 	if len(c.heap.Values) == 0 {
-		return false, nil
+		return false
 	}
 	key := &c.heap.Values[0]
 	*kv = key.KV
-	return true, nil
+	return true
 }
 
-func (c *Cursor) Get(kv *shared.KV) (bool, error) {
+func (c *Cursor) Get(kv *shared.KV) bool {
 	c.heap.Values = nil
 	for _, cur := range c.cursors {
 		tmp := *kv
-		found, err := cur.Find(&tmp)
-		if err != nil {
-			return false, err
-		}
+		found := cur.Find(&tmp)
 		if found == reader.Found {
 			*kv = tmp
-			return true, nil
+			return true
 		}
 	}
-	return false, nil
+	return false
 }
 
 // returns Found for exact match
 // Partial for found a value greater than key.
 // NotFound for no values >= key
-func (c *Cursor) Find(kv *shared.KV) (reader.FindResult, error) {
+func (c *Cursor) Find(kv *shared.KV) reader.FindResult {
 	c.heap.Values = nil
 	for i, cur := range c.cursors {
 		key := Position{
@@ -129,10 +117,7 @@ func (c *Cursor) Find(kv *shared.KV) (reader.FindResult, error) {
 			Index:  i,
 		}
 		key.KV.Key = kv.Key
-		found, err := key.Cursor.Find(&key.KV)
-		if err != nil {
-			return 0, err
-		}
+		found := key.Cursor.Find(&key.KV)
 		if found > 0 {
 			c.heap.Values = append(c.heap.Values, key)
 		}
@@ -140,14 +125,14 @@ func (c *Cursor) Find(kv *shared.KV) (reader.FindResult, error) {
 
 	c.heap.Init(1)
 	if len(c.heap.Values) == 0 {
-		return reader.NotFound, nil
+		return reader.NotFound
 	}
 
 	v := &c.heap.Values[0]
 	found := bytes.Equal(v.KV.Key, kv.Key)
 	*kv = v.KV
 	if found {
-		return reader.Found, nil
+		return reader.Found
 	}
-	return reader.FoundGreater, nil
+	return reader.FoundGreater
 }

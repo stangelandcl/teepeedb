@@ -1,4 +1,6 @@
-/*Copyright (c) 2011, Evan Shaw <edsrzf@gmail.com>
+/* From https://github.com/edsrzf/mmap-go
+
+Copyright (c) 2011, Evan Shaw <edsrzf@gmail.com>
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

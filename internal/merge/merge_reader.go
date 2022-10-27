@@ -43,7 +43,7 @@ func (r *Reader) Stats() Stats {
 	return s
 }
 
-func (r *Reader) Cursor() (*Cursor, error) {
+func (r *Reader) Cursor() *Cursor {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
@@ -51,14 +51,11 @@ func (r *Reader) Cursor() (*Cursor, error) {
 		reader: r,
 	}
 	for _, f := range r.files {
-		cur, err := f.Cursor()
-		if err != nil {
-			return c, err
-		}
+		cur := f.Cursor()
 		c.cursors = append(c.cursors, cur)
 	}
 	r.cursors++
-	return c, nil
+	return c
 }
 
 func (r *Reader) Close() {

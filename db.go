@@ -30,7 +30,7 @@ type DB struct {
 	done       bool
 
 	// options
-	compression shared.Compression
+	compression shared.BlockFormat
 	blockSize   int
 	valueSize   int
 	cache       reader.Cache
@@ -140,14 +140,13 @@ func (db *DB) resetReader() error {
 	return nil
 }
 
-func (db *DB) Cursor() (Cursor, error) {
+func (db *DB) Cursor() Cursor {
 	db.readLock.Lock()
 	defer db.readLock.Unlock()
 
 	c := Cursor{}
-	var err error
-	c.m, err = db.reader.Cursor()
-	return c, err
+	c.m = db.reader.Cursor()
+	return c
 }
 
 func (db *DB) Write() (Writer, error) {

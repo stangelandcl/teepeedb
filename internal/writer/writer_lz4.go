@@ -1,52 +1,55 @@
 package writer
 
 import (
-	"bytes"
 	"encoding/binary"
 	"io"
+	"log"
 
-	"github.com/pierrec/lz4/v4"
+	"github.com/stangelandcl/teepeedb/internal/lz4"
+	"github.com/stangelandcl/teepeedb/internal/varint"
 )
 
 type Lz4 struct {
-	compressed bytes.Buffer
-	zw         *lz4.Writer
-	w          *Raw
+	w             io.Writer
+	uncomp, compr []byte
+	tmp           [16]byte
 }
 
-func NewLz4(wr io.Writer) *Lz4 {
-	raw := NewRaw(wr)
-	w := &Lz4{
-		w: raw,
-	}
-	w.zw = lz4.NewWriter(&w.compressed)
-	return w
-
+func NewLz4(w io.Writer) *Lz4 {
+	return &Lz4{w: w}
 }
 
-func (w *Lz4) WriteBlock(blockParts ...[]byte) error {
-	uncompSz := 0
-	for i := range blockParts {
-		uncompSz += len(blockParts[i])
+func (w *Lz4) WriteBlock(offsets []uint16, body []byte) error {
+	n := varint.Len(len(offsets)) + len(offsets)*2 + len(body)
+	w.uncomp = append(w.uncomp[:0], make([]byte, n)...)
+
+	pos := binary.PutUvarint(w.uncomp, uint64(len(offsets)))
+	// differences compress better
+	x := offsets[0]
+	pos += 2
+	for i := 1; i < len(offsets); i++ {
+		y := offsets[i]
+		binary.LittleEndian.PutUint16(w.uncomp[pos:], y-x)
+		pos += 2
+		x = y
+	}
+	pos += copy(w.uncomp[pos:], body)
+	if len(w.uncomp) != pos {
+		log.Panicln("lz4 block writer: pos mismatch", len(w.uncomp), "!=", pos)
 	}
 
-	w.compressed.Reset()
-	w.zw.Reset(&w.compressed)
+	uncompSz := len(w.uncomp)
+	bound := lz4.CompressBlockBound(uncompSz)
+	w.compr = append(w.compr[:0], make([]byte, bound)...)
+	compsz := lz4.CompressBlock(w.uncomp, w.compr[:bound])
+	comp := w.compr[:compsz]
 
-	for _, part := range blockParts {
-		_, err := w.zw.Write(part)
-		if err != nil {
-			return err
-		}
-	}
-
-	err := w.zw.Close()
+	n = binary.PutUvarint(w.tmp[:], uint64(uncompSz))
+	n += binary.PutUvarint(w.tmp[n:], uint64(compsz))
+	_, err := w.w.Write(w.tmp[:n])
 	if err != nil {
 		return err
 	}
-
-	tmp := make([]byte, 0, 10)
-	tmp = binary.AppendUvarint(tmp, uint64(uint(uncompSz)))
-
-	return w.w.WriteBlock(tmp, w.compressed.Bytes())
+	_, err = w.w.Write(comp)
+	return err
 }

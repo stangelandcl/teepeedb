@@ -4,14 +4,14 @@ import "encoding/binary"
 
 type BlockType byte
 
-type Compression byte
+type BlockFormat byte
 
 const (
 	DataBlock  BlockType = 0
 	IndexBlock BlockType = 1
 
-	Raw Compression = 0
-	Lz4 Compression = 1
+	Raw BlockFormat = 0
+	Lz4 BlockFormat = 1
 )
 
 type IndexValue struct {
@@ -28,7 +28,7 @@ type KV struct {
 
 type FileFooter struct {
 	BlockSize         int
-	Compression       Compression
+	BlockFormat       BlockFormat
 	DataBlocks        int
 	DataBytes         int
 	Deletes           int
@@ -44,7 +44,7 @@ func (h *FileFooter) Marshal() []byte {
 	i := 0
 	binary.LittleEndian.PutUint64(buf[i:], uint64(h.BlockSize))
 	i += 8
-	buf[i] = byte(h.Compression)
+	buf[i] = byte(h.BlockFormat)
 	i++
 	binary.LittleEndian.PutUint64(buf[i:], uint64(h.DataBlocks))
 	i += 8
@@ -69,7 +69,7 @@ func (h *FileFooter) Unmarshal(buf []byte) {
 	i := 0
 	h.BlockSize = int(binary.LittleEndian.Uint64(buf[i:]))
 	i += 8
-	h.Compression = Compression(buf[i])
+	h.BlockFormat = BlockFormat(buf[i])
 	i++
 	h.DataBlocks = int(binary.LittleEndian.Uint64(buf[i:]))
 	i += 8

@@ -25,7 +25,7 @@ func E[T any](x T, err error) T {
 func TestFile(t *testing.T) {
 	cache := reader.NewCache(256 * 1024 * 1024 / 4096)
 	for u := 0; u < 2; u++ {
-		comp := shared.Compression(u)
+		comp := shared.BlockFormat(u)
 		fmt.Println()
 		fmt.Println("compressed?", comp)
 		w, err := writer.NewFile("test.db", 4096, -1, comp)
@@ -61,12 +61,9 @@ func TestFile(t *testing.T) {
 		defer r.Close()
 
 		tm = time.Now()
-		c, err := r.Cursor()
-		if err != nil {
-			panic(err)
-		}
+		c := r.Cursor()
 		i := uint32(0)
-		if !E(c.First(&kv)) {
+		if !c.First(&kv) {
 			panic("not first")
 		}
 		for {
@@ -79,7 +76,7 @@ func TestFile(t *testing.T) {
 				log.Panicln("invalid kv at", i, k)
 			}
 			i++
-			if !E(c.Next(&kv)) {
+			if !c.Next(&kv) {
 				break
 			}
 		}
@@ -89,7 +86,7 @@ func TestFile(t *testing.T) {
 		fmt.Println("forward", i, "in", time.Since(tm))
 
 		i = uint32(count)
-		if !E(c.Last(&kv)) {
+		if !c.Last(&kv) {
 			panic("not last")
 		}
 		for {
@@ -99,7 +96,7 @@ func TestFile(t *testing.T) {
 			if k != i || v != 1 {
 				log.Panicln("invalid kv at", i, k)
 			}
-			if !E(c.Previous(&kv)) {
+			if !c.Previous(&kv) {
 				break
 			}
 		}
@@ -111,7 +108,7 @@ func TestFile(t *testing.T) {
 		for i := uint32(0); i < uint32(count); i++ {
 			kv.Key = make([]byte, 4)
 			binary.BigEndian.PutUint32(kv.Key, i)
-			if E(c.Find(&kv)) == 0 {
+			if c.Find(&kv) == 0 {
 				log.Panicln("can't find sorted", i)
 			}
 			if len(kv.Key) != 4 || len(kv.Value) != 4 {
@@ -134,7 +131,7 @@ func TestFile(t *testing.T) {
 		for i := uint32(0); i < 1_000_000; i++ {
 			kv.Key = make([]byte, 4)
 			binary.BigEndian.PutUint32(kv.Key, ids[i])
-			if E(c.Find(&kv)) == 0 {
+			if c.Find(&kv) == 0 {
 				log.Panicln("can't find", ids[i], "at", i)
 			}
 			k := binary.BigEndian.Uint32(kv.Key)
@@ -153,7 +150,7 @@ func TestFile(t *testing.T) {
 			kb := make([]byte, 4)
 			binary.BigEndian.PutUint32(kb, ids[i])
 			kv.Key = kb
-			if E(c.Find(&kv)) == 0 {
+			if c.Find(&kv) == 0 {
 				log.Panicln("can't find", ids[i], "at", i)
 			}
 			k := binary.BigEndian.Uint32(kv.Key)

@@ -12,7 +12,7 @@ func NewRaw(buf []byte) (*Raw, error) {
 	}, nil
 }
 
-func (r *Raw) ReadBlock(pos int) ([]byte, error) {
+func (r *Raw) ReadBlock(pos int) []byte {
 	sz := varint.Read(r.buf, &pos)
-	return r.buf[pos : pos+sz], nil
+	return r.buf[pos : pos+sz]
 }

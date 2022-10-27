@@ -1,17 +1,16 @@
 package reader
 
 import (
-	"bytes"
+	"encoding/binary"
+	"log"
 	"sync/atomic"
 
-	"github.com/pierrec/lz4/v4"
+	"github.com/stangelandcl/teepeedb/internal/lz4"
 	"github.com/stangelandcl/teepeedb/internal/varint"
 )
 
 type Lz4 struct {
-	raw   *Raw
-	r     *bytes.Reader
-	zr    *lz4.Reader
+	buf   []byte
 	cache Cache
 	id    int64
 }
@@ -25,23 +24,17 @@ var id int64
 
 func NewLz4(buf []byte, cache Cache) (*Lz4, error) {
 	r := &Lz4{
-		id: atomic.AddInt64(&id, 1),
+		id:    atomic.AddInt64(&id, 1),
+		buf:   buf,
+		cache: cache,
 	}
-	raw, err := NewRaw(buf)
-	if err != nil {
-		return nil, err
-	}
-	r.raw = raw
-	r.zr = lz4.NewReader(nil)
-	r.r = bytes.NewReader(nil)
-	r.cache = cache
 	if r.cache == nil {
 		r.cache = &NullCache{}
 	}
 	return r, nil
 }
 
-func (r *Lz4) ReadBlock(pos int) ([]byte, error) {
+func (r *Lz4) ReadBlock(pos int) []byte {
 	key := hashKey{
 		Id:       r.id,
 		Position: pos,
@@ -51,22 +44,27 @@ func (r *Lz4) ReadBlock(pos int) ([]byte, error) {
 	if ok {
 		decomp = bufi.([]byte)
 	} else {
-		buf, err := r.raw.ReadBlock(pos)
-		if err != nil {
-			return nil, err
-		}
-		i := 0
-		uncompSz := varint.Read(buf, &i)
-		buf = buf[i:]
-		r.r.Reset(buf)
-		r.zr.Reset(r.r)
+		uncompSz := varint.Read(r.buf, &pos)
+		compSz := varint.Read(r.buf, &pos)
+		buf := r.buf[pos : pos+compSz]
 		decomp = make([]byte, uncompSz)
-		_, err = r.zr.Read(decomp)
-		if err != nil {
-			return nil, err
+		n := lz4.UncompressBlock(buf, decomp)
+		if n != uncompSz {
+			log.Panicln("decompressed does not match block size got", n, "expected", uncompSz)
 		}
+		pos = 0
+		noffsets := varint.Read(decomp, &pos) * 2
+		x := binary.LittleEndian.Uint16(decomp[pos:])
+		pos += 2
+		end := noffsets - 2 + pos
+		for i := pos; i < end; i += 2 {
+			y := binary.LittleEndian.Uint16(decomp[i:])
+			x += y
+			binary.LittleEndian.PutUint16(decomp[i:], x)
+		}
+
 		r.cache.Add(key, decomp)
 	}
 
-	return decomp, nil
+	return decomp
 }

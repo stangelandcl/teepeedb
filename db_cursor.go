@@ -38,26 +38,26 @@ func (c *Cursor) Close() {
 }
 
 // set Key on input, value will be set if found is true
-func (c *Cursor) Get(kv *KV) (found bool, err error) {
+func (c *Cursor) Get(kv *KV) bool {
 	tmp := shared.KV{
 		Key: kv.Key,
 	}
 
-	found, err = c.m.Get(&tmp)
+	found := c.m.Get(&tmp)
 	found = found && !tmp.Delete
 	kv.Key = tmp.Key
 	kv.Value = tmp.Value
-	return
+	return found
 }
 
 // if more is true kv is valid until next call to cursor function
-func (c *Cursor) Next(kv *KV) (more bool, err error) {
+func (c *Cursor) Next(kv *KV) bool {
 	tmp := shared.KV{}
 
 	for {
-		more, err = c.m.Next(&tmp)
+		more := c.m.Next(&tmp)
 		if !more {
-			return
+			return false
 		}
 		if !tmp.Delete {
 			break
@@ -65,17 +65,17 @@ func (c *Cursor) Next(kv *KV) (more bool, err error) {
 	}
 	kv.Key = tmp.Key
 	kv.Value = tmp.Value
-	return
+	return true
 }
 
 // if more is true kv is valid until next call to cursor function
-func (c *Cursor) Previous(kv *KV) (more bool, err error) {
+func (c *Cursor) Previous(kv *KV) bool {
 	tmp := shared.KV{}
 
 	for {
-		more, err = c.m.Previous(&tmp)
+		more := c.m.Previous(&tmp)
 		if !more {
-			return
+			return false
 		}
 		if !tmp.Delete {
 			break
@@ -83,72 +83,54 @@ func (c *Cursor) Previous(kv *KV) (more bool, err error) {
 	}
 	kv.Key = tmp.Key
 	kv.Value = tmp.Value
-	return
+	return true
 }
 
-func (c *Cursor) First(kv *KV) (more bool, err error) {
+func (c *Cursor) First(kv *KV) bool {
 	tmp := shared.KV{}
-
-	more, err = c.m.First(&tmp)
-	if !more {
-		return
-	}
-
-	for tmp.Delete {
-		more, err = c.m.Next(&tmp)
-		if !more {
-			return
-		}
+	more := c.m.First(&tmp)
+	for more && tmp.Delete {
+		more = c.m.Next(&tmp)
 	}
 	kv.Key = tmp.Key
 	kv.Value = tmp.Value
-	return
+	return more
 }
 
-func (c *Cursor) Last(kv *KV) (more bool, err error) {
+func (c *Cursor) Last(kv *KV) bool {
 	tmp := shared.KV{}
-	more, err = c.m.Last(&tmp)
-	if !more {
-		return
-	}
-
-	for tmp.Delete {
-		more, err = c.m.Previous(&tmp)
-		if !more {
-			return
-		}
+	more := c.m.Last(&tmp)
+	for more && tmp.Delete {
+		more = c.m.Previous(&tmp)
 	}
 	kv.Key = tmp.Key
 	kv.Value = tmp.Value
-	return
+	return more
 }
 
 // set key on input. value and key will be set if found or partial is true
 // returns Found for exact match
 // Partial for found a value greater than key.
 // NotFound for no values >= key
-func (c *Cursor) Find(kv *KV) (result FindResult, err error) {
+func (c *Cursor) Find(kv *KV) FindResult {
 	tmp := shared.KV{
 		Key: kv.Key,
 	}
 
-	var r reader.FindResult
-	r, err = c.m.Find(&tmp)
-	result = FindResult(r)
-	if err != nil || result == NotFound {
-		return
+	result := FindResult(c.m.Find(&tmp))
+	if result == NotFound {
+		return result
 	}
 
 	for tmp.Delete {
 		var more bool
-		more, err = c.m.Next(&tmp)
+		more = c.m.Next(&tmp)
 		if !more {
-			result = NotFound
-			return
+			return NotFound
 		}
 		result = FoundGreater
 	}
 	kv.Key = tmp.Key
 	kv.Value = tmp.Value
-	return
+	return result
 }

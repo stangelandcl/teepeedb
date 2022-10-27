@@ -29,7 +29,7 @@ func NewMerger(
 	cache reader.Cache,
 	hardDelete bool,
 	blockSize, valueSize int,
-	compression shared.Compression) (merger, error) {
+	compression shared.BlockFormat) (merger, error) {
 	if len(files) == 0 {
 		return merger{}, fmt.Errorf("teepeedb: no files to merge")
 	}
@@ -58,17 +58,11 @@ func (w *merger) Run() error {
 	if len(w.files) == 1 {
 		return nil
 	}
-	c, err := w.r.Cursor()
-	if err != nil {
-		return err
-	}
+	c := w.r.Cursor()
 	defer c.Close()
 	keys := []uint32{}
 	kv := shared.KV{}
-	more, err := c.First(&kv)
-	if err != nil {
-		return err
-	}
+	more := c.First(&kv)
 	for more {
 		keys = append(keys, binary.BigEndian.Uint32(kv.Key))
 
@@ -78,17 +72,14 @@ func (w *merger) Run() error {
 				return err
 			}
 		}
-		more, err = c.Next(&kv)
-		if err != nil {
-			return err
-		}
+		more = c.Next(&kv)
 	}
 
 	sort.Slice(keys, func(i, j int) bool {
 		return keys[i] < keys[j]
 	})
 
-	err = w.w.Close()
+	err := w.w.Close()
 	if err != nil {
 		return err
 	}

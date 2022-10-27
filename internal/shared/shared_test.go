@@ -15,7 +15,7 @@ func TestFooter(t *testing.T) {
 		Inserts:           7,
 		LastIndexPosition: 8,
 		ValueSize:         9,
-		Compression:       Lz4,
+		BlockFormat:       Lz4,
 	}
 
 	buf := x.Marshal()
@@ -49,7 +49,7 @@ func TestFooter(t *testing.T) {
 	if x.ValueSize != y.ValueSize {
 		panic("valuesize")
 	}
-	if x.Compression != y.Compression {
+	if x.BlockFormat != y.BlockFormat {
 		panic("compression")
 	}
 }

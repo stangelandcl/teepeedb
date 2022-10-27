@@ -19,12 +19,12 @@ type File struct {
 	flushed bool
 }
 
-func NewFile(filename string, blockSize, valueSize int, compression shared.Compression) (*File, error) {
+func NewFile(filename string, blockSize, valueSize int, format shared.BlockFormat) (*File, error) {
 	fw := &File{
 		footer: shared.FileFooter{
 			BlockSize:   blockSize,
 			ValueSize:   valueSize,
-			Compression: compression,
+			BlockFormat: format,
 		},
 	}
 	f, err := NewBuffered(filename)
@@ -32,7 +32,7 @@ func NewFile(filename string, blockSize, valueSize int, compression shared.Compr
 		return nil, err
 	}
 	fw.f = f
-	switch compression {
+	switch format {
 	case shared.Raw:
 		fw.blockWriter = NewRaw(fw.f)
 	case shared.Lz4:
@@ -40,7 +40,7 @@ func NewFile(filename string, blockSize, valueSize int, compression shared.Compr
 	default:
 		f.Close()
 		os.Remove(filename)
-		return nil, fmt.Errorf("teepeedb: unsupported compression: %v", compression)
+		return nil, fmt.Errorf("teepeedb: unsupported compression: %v", format)
 	}
 	fw.block = NewBlock(blockSize, valueSize >= 0)
 	fw.indexes = append(fw.indexes, NewIndex(fw.footer.BlockSize))
