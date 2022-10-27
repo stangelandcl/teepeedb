@@ -151,16 +151,14 @@ func (db *DB) reloadReader() error {
 		return err
 	}
 
-	db.readLock.Lock()
-	defer db.readLock.Unlock()
-
 	// atomic with Cursor() so new cursors cannot be opened while a
 	// reader is being closed
+	db.readLock.Lock()
+	defer db.readLock.Unlock()
 
 	old := db.reader
 	db.reader = r
 	if old != nil {
-		// this blocks until all cursors are closed
 		old.Close()
 	}
 
@@ -199,10 +197,8 @@ func (db *DB) Write() (Writer, error) {
 	}, nil
 }
 
-// users responsibility to ensure no more new reads or writes come in once
+// caller's responsibility to ensure no more new reads or writes come in once
 // close has started.
-// if Close() hangs then probably missing a defer cursor.Close()
-// or defer writer.Close() call
 func (db *DB) Close() {
 	// allow double close
 	if db.mergerChan == nil {
@@ -222,7 +218,6 @@ func (db *DB) Close() {
 	db.mergerWaitGroup.Wait()
 	db.mergerChan = nil
 
-	// blocks until all cursors are closed
 	db.reader.Close()
 	db.reader = nil
 }

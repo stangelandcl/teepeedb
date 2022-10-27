@@ -16,7 +16,8 @@ type Cursor struct {
 
 func (c *Cursor) Close() {
 	if !c.closed {
-		c.reader.cursorsWaitGroup.Done()
+		// decrement refcount and possibly close reader
+		c.reader.Close()
 		c.closed = true
 	}
 }

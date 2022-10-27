@@ -2,15 +2,15 @@ package merge
 
 import (
 	"log"
-	"sync"
+	"sync/atomic"
 
 	"github.com/stangelandcl/teepeedb/internal/reader"
 	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 type Reader struct {
-	files            []reader.File
-	cursorsWaitGroup sync.WaitGroup
+	files    []reader.File
+	refcount int64
 }
 
 type Stats struct {
@@ -19,7 +19,7 @@ type Stats struct {
 
 // files in sorted order. newest first
 func NewReader(files []string, cache reader.Cache) (*Reader, error) {
-	r := &Reader{}
+	r := &Reader{refcount: 1}
 	for _, f := range files {
 		fr, err := reader.NewFile(f, cache)
 		if err != nil {
@@ -46,18 +46,24 @@ func (r *Reader) Cursor() *Cursor {
 	c := &Cursor{
 		reader: r,
 	}
+	if atomic.AddInt64(&r.refcount, 1) <= 1 {
+		return c // already closed
+	}
 	for _, f := range r.files {
 		cur := f.Cursor()
 		c.cursors = append(c.cursors, cur)
 	}
-	r.cursorsWaitGroup.Add(1)
 	return c
 }
 
-// block until all cursors are closed
+// decrement refcount and close reader if this call came
+// from the last user
 func (r *Reader) Close() {
-	r.cursorsWaitGroup.Wait()
-
+	// refcount = 0 requires all cursors closed plus
+	// first call to Close() outside a cursor.Close()
+	if atomic.AddInt64(&r.refcount, -1) != 0 {
+		return
+	}
 	for _, f := range r.files {
 		f.Close()
 	}
