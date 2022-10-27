@@ -23,7 +23,7 @@ func TestExample(t *testing.T) {
 		panic(err)
 	}
 	// always call close whether calling commit or not
-	defer w.Close()
+	//defer w.Close()
 	tm := time.Now()
 	for i := 0; i < count; i++ {
 		// data is sorted in memcmp/bytes.Compare order so use big-endian

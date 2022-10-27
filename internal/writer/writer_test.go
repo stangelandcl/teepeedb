@@ -30,6 +30,10 @@ func TestWrite(t *testing.T) {
 			panic(err)
 		}
 	}
+	err = f.Commit()
+	if err != nil {
+		panic(err)
+	}
 	err = f.Close()
 	if err != nil {
 		panic(err)
@@ -54,6 +58,10 @@ func TestWrite(t *testing.T) {
 		if err != nil {
 			panic(err)
 		}
+	}
+	err = f.Commit()
+	if err != nil {
+		panic(err)
 	}
 	err = f.Close()
 	if err != nil {

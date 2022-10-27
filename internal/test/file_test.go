@@ -46,7 +46,10 @@ func TestFile(t *testing.T) {
 				panic(err)
 			}
 		}
-
+		err = w.Commit()
+		if err != nil {
+			panic(err)
+		}
 		err = w.Close()
 		if err != nil {
 			panic(err)

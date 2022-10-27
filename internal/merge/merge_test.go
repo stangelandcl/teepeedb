@@ -43,6 +43,7 @@ func TestNoOverlap(t *testing.T) {
 			panic(err)
 		}
 	}
+	w.Commit()
 	w.Close()
 
 	w = E(writer.NewFile("test.new.db", 16384, -1, shared.Lz4))
@@ -60,6 +61,7 @@ func TestNoOverlap(t *testing.T) {
 			panic(err)
 		}
 	}
+	w.Commit()
 	w.Close()
 
 	m, err := NewMerger("test.db", []string{"test.new.db", "test.old.db"}, cache, true, 16384, -1, shared.Lz4)
@@ -89,6 +91,7 @@ func TestNoOverlap(t *testing.T) {
 			panic(err)
 		}
 	}
+	w.Commit()
 	w.Close()
 
 	m, err = NewMerger("test.db", []string{"test.new.db"}, cache, true, 16384, -1, shared.Lz4)
@@ -149,6 +152,10 @@ func TestMerge(t *testing.T) {
 		}
 	}
 
+	err = w.Commit()
+	if err != nil {
+		panic(err)
+	}
 	err = w.Close()
 	if err != nil {
 		panic(err)
@@ -169,6 +176,10 @@ func TestMerge(t *testing.T) {
 		}
 	}
 
+	err = w.Commit()
+	if err != nil {
+		panic(err)
+	}
 	err = w.Close()
 	if err != nil {
 		panic(err)

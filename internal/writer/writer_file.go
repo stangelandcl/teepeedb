@@ -49,7 +49,7 @@ func (f *File) Len() int {
 	return f.footer.DataBytes + f.footer.IndexBytes
 }
 
-func (f *File) finish() error {
+func (f *File) Commit() error {
 	pos := f.f.Position
 	info, err := f.block.Write(f.blockWriter)
 	if err != nil && err != io.EOF {
@@ -104,16 +104,16 @@ func (f *File) finish() error {
 		return err
 	}
 
+	err = f.f.Commit()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func (f *File) Close() error {
-	err1 := f.finish()
-	err2 := f.f.Close()
-	if err2 != nil {
-		return err2
-	}
-	return err1
+	err := f.f.Close()
+	return err
 }
 
 func (f *File) Add(kv *shared.KV) error {

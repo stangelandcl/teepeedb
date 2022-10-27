@@ -10,6 +10,7 @@ type Buffered struct {
 	w        *bufio.Writer
 	f        *os.File
 	Position int
+	closed   bool
 }
 
 func NewBuffered(filename string) (*Buffered, error) {
@@ -28,10 +29,11 @@ func (b *Buffered) Write(buf []byte) (int, error) {
 	return n, err
 }
 
-func (b *Buffered) Close() error {
+func (b *Buffered) Commit() error {
 	err1 := b.w.Flush()
 	err2 := b.f.Sync()
 	err3 := b.f.Close()
+	b.closed = true
 	if err1 != nil {
 		return err1
 	}
@@ -39,4 +41,13 @@ func (b *Buffered) Close() error {
 		return err2
 	}
 	return err3
+}
+
+func (b *Buffered) Close() error {
+	var err error
+	if !b.closed {
+		err = b.f.Close()
+		b.closed = true
+	}
+	return err
 }

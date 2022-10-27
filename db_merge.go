@@ -90,11 +90,11 @@ func (db *DB) mergeLoop() {
 }
 
 func (db *DB) mergeLowerLevels() {
+	max := db.baseSize
 	for i := 1; i < 10; i++ {
 		new := fmt.Sprint(db.directory, "/", "l", i, ".lsm")
 		fs, err := os.Stat(new)
-		max := db.baseSize
-		db.baseSize *= db.multiplier
+		max *= db.multiplier
 		if err != nil || fs.Size() < int64(max) {
 			continue
 		}

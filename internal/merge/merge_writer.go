@@ -13,11 +13,12 @@ import (
 )
 
 type merger struct {
-	r       *Reader
-	w       *writer.File
-	delete  bool
-	files   []string
-	dstfile string
+	r         *Reader
+	w         *writer.File
+	delete    bool
+	files     []string
+	dstfile   string
+	committed bool
 }
 
 // files in order newest to oldest
@@ -79,19 +80,14 @@ func (w *merger) Run() error {
 		return keys[i] < keys[j]
 	})
 
-	err := w.w.Close()
+	err := w.w.Commit()
 	if err != nil {
 		return err
 	}
-	w.w = nil // success
 	return nil
 }
 
 func (w *merger) Commit() error {
-	if w.w != nil {
-		return fmt.Errorf("teepeedb: can't commit because Run() failed")
-	}
-
 	var err error
 	if len(w.files) == 1 {
 		err = os.Rename(w.files[0], w.dstfile)
@@ -103,6 +99,7 @@ func (w *merger) Commit() error {
 		log.Println("merge failed", w.dstfile, err)
 		return err
 	}
+	w.committed = true
 
 	// remove in reverse order so LSM tree is never in an invalid state
 	// removing newest first would leave older entries as the top level values
@@ -115,16 +112,18 @@ func (w *merger) Commit() error {
 	return nil
 }
 
-func (w *merger) Close() {
-	if w.r != nil {
-		w.r.Close()
-		w.r = nil
+func (m *merger) Close() {
+	if m.r != nil {
+		m.r.Close()
+		m.r = nil
 	}
 
-	// if failure
-	if w.w != nil {
-		w.w.Close()
-		os.Remove(w.dstfile + ".tmp")
-		w.w = nil
+	// happens when moving a single file instead of merging
+	if m.w != nil {
+		m.w.Close()
+	}
+	if !m.committed {
+		os.Remove(m.dstfile + ".tmp")
+		m.committed = true
 	}
 }
