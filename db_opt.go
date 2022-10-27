@@ -1,18 +1,23 @@
 package teepeedb
 
 import (
+	"time"
+
 	"github.com/stangelandcl/teepeedb/internal/reader"
 	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 type Opt func(db *DB)
 
+// atomic LRU cache, like 2Q algorithm
 type Cache interface {
 	reader.Cache
 }
 
-func NewCache(size int) Cache {
-	return reader.NewCache(size)
+// new 2Q cache of blockCount blocks.
+// multiply blockCount * block size to estimate cache memory use
+func NewCache(blockCount int) Cache {
+	return reader.NewCache(blockCount)
 }
 
 // cache for holding uncompressed blocks
@@ -23,11 +28,11 @@ func WithCache(cache Cache) Opt {
 	}
 }
 
-// cache size holding uncompressed blocks in bytes
+// cache size in bytes
 // only useful when reading compressed data
 func WithCacheSize(size int) Opt {
 	return func(db *DB) {
-		db.cache = NewCache(size)
+		db.cache = NewCache(size / db.blockSize)
 	}
 }
 
@@ -53,5 +58,17 @@ func WithValueSize(size int) Opt {
 func WithLz4() Opt {
 	return func(db *DB) {
 		db.compression = shared.Lz4
+	}
+}
+
+// set merge loop background check frequency
+// this is only used as a fallback. every write signals the merger to wakeup
+// and move at least level 0 files into level 1, possibly more if level 1
+// is then full. the background merge is just used in case a merge gets skipped
+// or aborted early to try to cleanup. checks if a merge is needed and only
+// performs it if there is level 0 data or a level is over-sized
+func WithMergeFrequency(loop time.Duration) Opt {
+	return func(db *DB) {
+		db.mergeFrequency = loop
 	}
 }

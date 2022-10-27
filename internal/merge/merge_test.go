@@ -106,7 +106,7 @@ func TestNoOverlap(t *testing.T) {
 	m.Close()
 
 	r := E(NewReader([]string{"test.db"}, cache))
-
+	defer r.Close()
 	c := r.Cursor()
 	defer c.Close()
 
@@ -375,11 +375,12 @@ func TestMerge(t *testing.T) {
 		panic(err)
 	}
 	m.Close()
-
+	c.Close()
 	r.Close()
 	r = E(NewReader([]string{"test.db.tmp"}, cache))
-
+	defer r.Close()
 	c = r.Cursor()
+	defer c.Close()
 
 	i = 0
 	more = c.First(&kv)

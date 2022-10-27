@@ -17,10 +17,12 @@ const (
 	FoundGreater FindResult = FindResult(reader.FoundGreater)
 )
 
+// Not found and nothing greater found
 func (r FindResult) Empty() bool {
 	return r == NotFound
 }
 
+// found either an exact match or a value greater than key
 func (r FindResult) Any() bool {
 	return r != NotFound
 }
@@ -50,6 +52,7 @@ func (c *Cursor) Get(kv *KV) bool {
 	return found
 }
 
+// call First or Find once before Previous
 // if more is true kv is valid until next call to cursor function
 func (c *Cursor) Next(kv *KV) bool {
 	tmp := shared.KV{}
@@ -68,6 +71,7 @@ func (c *Cursor) Next(kv *KV) bool {
 	return true
 }
 
+// call Last or Find once before Previous
 // if more is true kv is valid until next call to cursor function
 func (c *Cursor) Previous(kv *KV) bool {
 	tmp := shared.KV{}
@@ -86,6 +90,8 @@ func (c *Cursor) Previous(kv *KV) bool {
 	return true
 }
 
+// go to first key-value pair and return it if result is true
+// if result is false then DB is empty
 func (c *Cursor) First(kv *KV) bool {
 	tmp := shared.KV{}
 	more := c.m.First(&tmp)
@@ -97,6 +103,8 @@ func (c *Cursor) First(kv *KV) bool {
 	return more
 }
 
+// go to last key-value pair and return it if result is true
+// if result is false then DB is empty
 func (c *Cursor) Last(kv *KV) bool {
 	tmp := shared.KV{}
 	more := c.m.Last(&tmp)
@@ -108,9 +116,10 @@ func (c *Cursor) Last(kv *KV) bool {
 	return more
 }
 
-// set key on input. value and key will be set if found or partial is true
+// set key on input.
+// key and value will be set on output if found or partial is true
 // returns Found for exact match
-// Partial for found a value greater than key.
+// FoundGreater for a value greater than key.
 // NotFound for no values >= key
 func (c *Cursor) Find(kv *KV) FindResult {
 	tmp := shared.KV{

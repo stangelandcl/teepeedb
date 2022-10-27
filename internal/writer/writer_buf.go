@@ -5,6 +5,7 @@ import (
 	"os"
 )
 
+// buffered file with position
 type Buffered struct {
 	w        *bufio.Writer
 	f        *os.File

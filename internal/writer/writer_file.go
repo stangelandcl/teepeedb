@@ -15,8 +15,6 @@ type File struct {
 	blockWriter BlockWriter
 	block       Block
 	footer      shared.FileFooter
-
-	flushed bool
 }
 
 func NewFile(filename string, blockSize, valueSize int, format shared.BlockFormat) (*File, error) {
@@ -51,7 +49,7 @@ func (f *File) Len() int {
 	return f.footer.DataBytes + f.footer.IndexBytes
 }
 
-func (f *File) flush() error {
+func (f *File) finish() error {
 	pos := f.f.Position
 	info, err := f.block.Write(f.blockWriter)
 	if err != nil && err != io.EOF {
@@ -106,16 +104,11 @@ func (f *File) flush() error {
 		return err
 	}
 
-	f.flushed = true
 	return nil
 }
 
 func (f *File) Close() error {
-	var err1 error
-	if !f.flushed {
-		err1 = f.flush()
-		// always call file.Close()
-	}
+	err1 := f.finish()
 	err2 := f.f.Close()
 	if err2 != nil {
 		return err2

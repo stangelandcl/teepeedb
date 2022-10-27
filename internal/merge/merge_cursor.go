@@ -15,11 +15,8 @@ type Cursor struct {
 }
 
 func (c *Cursor) Close() {
-	c.reader.mutex.Lock()
-	defer c.reader.mutex.Unlock()
-
 	if !c.closed {
-		c.reader.cursors--
+		c.reader.cursorsWaitGroup.Done()
 		c.closed = true
 	}
 }

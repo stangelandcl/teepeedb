@@ -56,8 +56,8 @@ func (w *Writer) Commit() error {
 	// commit
 	err = os.Rename(w.filename+".tmp", w.filename)
 	if err == nil {
-		w.w = nil                // so close knows it committed
-		err = w.db.resetReader() // so next open cursor sees changes
+		w.w = nil                 // so close knows it committed
+		err = w.db.reloadReader() // so next open cursor sees changes
 		w.db.wakeMerger()
 	}
 	return err

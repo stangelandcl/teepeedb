@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/stangelandcl/teepeedb/internal/merge"
 	"github.com/stangelandcl/teepeedb/internal/reader"
@@ -22,18 +23,24 @@ type DB struct {
 	readLock sync.Mutex
 	// so deleting old files from merge doesn't coincide with opening
 	// a new reader on those files
-	mergeLock  sync.Mutex
-	counter    int64
-	mergerChan chan int
-	wg         sync.WaitGroup
-	reader     *merge.Reader
-	done       bool
+	mergeLock       sync.Mutex
+	counter         int64
+	mergerChan      chan int
+	mergerWaitGroup sync.WaitGroup
+	reader          *merge.Reader
+	closed          bool
 
 	// options
-	compression shared.BlockFormat
-	blockSize   int
-	valueSize   int
-	cache       reader.Cache
+	compression    shared.BlockFormat
+	blockSize      int
+	valueSize      int
+	cache          reader.Cache
+	mergeFrequency time.Duration
+
+	// size of level 1
+	baseSize int
+	// size of level N + 1 = multiplier + size of level N
+	multiplier int
 }
 
 type Stats struct {
@@ -65,6 +72,8 @@ func (s Stats) Count() int {
 	return count
 }
 
+// create or open database in directory. directory will be created
+// if it doesn't exist
 func Open(directory string, opts ...Opt) (*DB, error) {
 	err := os.MkdirAll(directory, 0755)
 	if err != nil {
@@ -75,23 +84,34 @@ func Open(directory string, opts ...Opt) (*DB, error) {
 		mergerChan: make(chan int, 2),
 
 		/* options */
-		cache:       &reader.NullCache{},
-		blockSize:   4096,
-		valueSize:   -1,
-		compression: shared.Raw,
+		cache:          &reader.NullCache{},
+		blockSize:      4096,
+		valueSize:      -1,
+		compression:    shared.Raw,
+		mergeFrequency: time.Hour,
+
+		baseSize:   16 * 1024 * 1024,
+		multiplier: 10,
 	}
-	err = db.resetReader()
+	for _, opt := range opts {
+		opt(db)
+	}
+
+	err = db.reloadReader()
 	if err != nil {
 		close(db.mergerChan)
 		return nil, err
 	}
 
-	db.wg.Add(1)
+	db.mergerWaitGroup.Add(1)
 	go db.mergeLoop()
 
 	return db, nil
 }
 
+// return summed stats from each underlying level to estimate
+// size and counts quickly. stats are stored in each file not calculated
+// on the fly for speed
 func (db *DB) Stats() Stats {
 	db.readLock.Lock()
 	defer db.readLock.Unlock()
@@ -109,7 +129,10 @@ func (db *DB) Stats() Stats {
 	return rs
 }
 
-func (db *DB) resetReader() error {
+// close old reader and open new
+// atomic with respect to the final rename and cleanup of merged files
+// also with respect to opening a cursor
+func (db *DB) reloadReader() error {
 	var r *merge.Reader
 	err := func() error {
 		// lock so merger can't delete files while we are opening them
@@ -130,10 +153,14 @@ func (db *DB) resetReader() error {
 
 	db.readLock.Lock()
 	defer db.readLock.Unlock()
+
+	// atomic with Cursor() so new cursors cannot be opened while a
+	// reader is being closed
+
 	old := db.reader
-	// atomic so
 	db.reader = r
 	if old != nil {
+		// this blocks until all cursors are closed
 		old.Close()
 	}
 
@@ -151,7 +178,7 @@ func (db *DB) Cursor() Cursor {
 
 func (db *DB) Write() (Writer, error) {
 	db.writeLock.Lock()
-	if db.done {
+	if db.closed {
 		db.writeLock.Unlock()
 		return Writer{}, fmt.Errorf("teepeedb: database closed")
 	}
@@ -172,12 +199,16 @@ func (db *DB) Write() (Writer, error) {
 	}, nil
 }
 
+// users responsibility to ensure no more new reads or writes come in once
+// close has started.
+// if Close() hangs then probably missing a defer cursor.Close()
+// or defer writer.Close() call
 func (db *DB) Close() {
 	// allow double close
-	if db.reader == nil && db.mergerChan == nil {
+	if db.mergerChan == nil {
 		return
 	}
-	db.done = true
+	db.closed = true
 
 	if !db.writeLock.TryLock() {
 		log.Println("teepeedb: waiting for write to close")
@@ -185,11 +216,13 @@ func (db *DB) Close() {
 	}
 	defer db.writeLock.Unlock()
 
+	// signal merge to close
 	close(db.mergerChan)
-	//fmt.Println("waiting to close for merger")
-	db.wg.Wait()
+	// wait for merger to close
+	db.mergerWaitGroup.Wait()
 	db.mergerChan = nil
-	//fmt.Println("closing")
+
+	// blocks until all cursors are closed
 	db.reader.Close()
 	db.reader = nil
 }

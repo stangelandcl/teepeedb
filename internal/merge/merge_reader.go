@@ -9,9 +9,8 @@ import (
 )
 
 type Reader struct {
-	files   []reader.File
-	mutex   sync.Mutex
-	cursors int
+	files            []reader.File
+	cursorsWaitGroup sync.WaitGroup
 }
 
 type Stats struct {
@@ -44,9 +43,6 @@ func (r *Reader) Stats() Stats {
 }
 
 func (r *Reader) Cursor() *Cursor {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
 	c := &Cursor{
 		reader: r,
 	}
@@ -54,17 +50,13 @@ func (r *Reader) Cursor() *Cursor {
 		cur := f.Cursor()
 		c.cursors = append(c.cursors, cur)
 	}
-	r.cursors++
+	r.cursorsWaitGroup.Add(1)
 	return c
 }
 
+// block until all cursors are closed
 func (r *Reader) Close() {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
-	if r.cursors > 0 {
-		return
-	}
+	r.cursorsWaitGroup.Wait()
 
 	for _, f := range r.files {
 		f.Close()

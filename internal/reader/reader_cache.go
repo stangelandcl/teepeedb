@@ -6,14 +6,17 @@ import (
 	lru "github.com/hashicorp/golang-lru"
 )
 
+// LRU type cache
 type Cache interface {
+	// atomic get
 	Get(key any) (val any, ok bool)
+	// atomic LRU add
 	Add(key, val any)
 }
 
 func NewCache(size int) Cache {
 	if size <= 0 {
-		size = 4 * 1024 * 1024
+		return &NullCache{}
 	}
 	cache, err := lru.New2Q(size)
 	if err != nil {

@@ -12,6 +12,9 @@ import (
 	"github.com/stangelandcl/teepeedb/internal/merge"
 )
 
+// true if a level at min or greater has data that needs merged
+// this is for checking if deletes should be tombstones or real deletes
+// lowest level can use real deletes
 func (db *DB) hasLowerLevel(min int) bool {
 	for i := min; i < 10; i++ {
 		_, err := os.Stat(fmt.Sprint(db.directory, "/", "l", i, ".lsm"))
@@ -27,16 +30,18 @@ func (db *DB) mergeLoop() {
 	for alive {
 		select {
 		case _, alive = <-db.mergerChan:
-		case <-time.After(60 * time.Second):
+		case <-time.After(db.mergeFrequency):
 		}
 
-		//fmt.Println("merger awake")
+		// loop because maybe new data came in as we were merging
 		for {
 			files, err := filepath.Glob(fmt.Sprint(db.directory, "/", "l0.*.lsm"))
 			if err != nil {
 				log.Println("error globbing l0 files in", db.directory, err)
 				break
 			}
+			// continue merging until there is no more new data to push down
+			// the tree
 			if len(files) == 0 {
 				break
 			}
@@ -50,15 +55,16 @@ func (db *DB) mergeLoop() {
 				files = append(files, l1)
 			}
 
-			//log.Println("merging", len(files), "files in", db.directory)
 			delete := !db.hasLowerLevel(2)
 
+			// merge level 0 into level 1
 			err = db.merge(l1, files, delete)
 			if err != nil {
 				log.Println("error merging into", db.directory, "into l1:", err)
 				break
 			}
 
+			// merge level 1+ into next lowest level if possible
 			db.mergeLowerLevels()
 
 			files, _ = filepath.Glob(fmt.Sprint(db.directory, "/", "*.tmp"))
@@ -67,7 +73,7 @@ func (db *DB) mergeLoop() {
 					fmt.Println("ll still have tmp", f)
 				}
 			}
-			err = db.resetReader()
+			err = db.reloadReader()
 			if err != nil {
 				log.Println("error reopening readers", db.directory, err)
 				break
@@ -77,22 +83,18 @@ func (db *DB) mergeLoop() {
 
 	files, _ := filepath.Glob(fmt.Sprint(db.directory, "/", "*.tmp"))
 	for _, f := range files {
-		//fmt.Println("removing tmp", f)
 		os.Remove(f)
 	}
 
-	//fmt.Println("merging done")
-	db.wg.Done()
+	db.mergerWaitGroup.Done()
 }
 
 func (db *DB) mergeLowerLevels() {
-	baseSize := 16 * 1024 * 1024
-	multiplier := 10
 	for i := 1; i < 10; i++ {
 		new := fmt.Sprint(db.directory, "/", "l", i, ".lsm")
 		fs, err := os.Stat(new)
-		max := baseSize
-		baseSize *= multiplier
+		max := db.baseSize
+		db.baseSize *= db.multiplier
 		if err != nil || fs.Size() < int64(max) {
 			continue
 		}
@@ -135,6 +137,7 @@ func (db *DB) merge(dstfile string, files []string, delete bool) error {
 	return err
 }
 
+// non-blocking try-wake merger
 func (db *DB) wakeMerger() {
 	select {
 	case db.mergerChan <- 1:

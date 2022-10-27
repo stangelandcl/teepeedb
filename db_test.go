@@ -10,7 +10,7 @@ import (
 )
 
 func TestExample(t *testing.T) {
-	db, err := Open("test.db", WithCacheSize(256*1024*1024))
+	db, err := Open("test.db", WithCacheSize(64*1024*1024), WithLz4())
 	if err != nil {
 		panic(err)
 	}
