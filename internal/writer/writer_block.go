@@ -3,6 +3,7 @@ package writer
 import (
 	"encoding/binary"
 	"io"
+	"log"
 
 	"github.com/stangelandcl/teepeedb/internal/shared"
 	"github.com/stangelandcl/teepeedb/internal/varint"
@@ -45,7 +46,7 @@ func (b *Block) HasSpace(keylen, vallen int) bool {
 
 	total := sz + len(b.body) + len(b.offsets) +
 		varint.Len(len(b.body))*2 +
-		varint.Len(len(b.offsets)/2)
+		varint.Len(len(b.offsets))
 	return len(b.offsets) == 0 || total <= b.blockSize
 }
 
@@ -74,13 +75,17 @@ func (b *Block) Write(w BlockWriter) (stats Stats, err error) {
 		return
 	}
 
+	if len(b.offsets) == 0 {
+		log.Panicln("teepeedb: no offsets but have body:", len(b.body))
+	}
+
 	err = w.WriteBlock(b.offsets, b.body)
 	if err != nil {
 		return
 	}
 
 	stats.FirstKey = b.readKey(0)
-	stats.LastKey = b.readKey(len(b.offsets)/2 - 1)
+	stats.LastKey = b.readKey(len(b.offsets) - 1)
 	stats.Upserts = b.upserts
 	stats.Deletes = b.deletes
 
