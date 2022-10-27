@@ -17,7 +17,7 @@ same process is not an issue.
 
 Uses memory mapping for reads.
 
-A teepee has the same basic shape as a log-structured merge tree - triangular.
+A teepee has the same basic shape as a log-structured merge tree, triangular. More importantly teepeedb is fun to say.
 
 ### Example
 
