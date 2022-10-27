@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/stangelandcl/teepeedb/internal/merge"
@@ -23,6 +22,18 @@ func (db *DB) hasLowerLevel(min int) bool {
 		}
 	}
 	return false
+}
+
+func fileSize(files ...string) int {
+	sz := 0
+	for _, file := range files {
+		x, err := os.Stat(file)
+		if err != nil {
+			continue
+		}
+		sz += int(x.Size())
+	}
+	return sz
 }
 
 func (db *DB) mergeLoop() {
@@ -49,30 +60,47 @@ func (db *DB) mergeLoop() {
 				return files[i] < files[j]
 			})
 
-			l1 := fmt.Sprint(db.directory, "/l1.lsm")
-			_, err = os.Stat(l1)
-			if err == nil {
-				files = append(files, l1)
+			totalSize := fileSize(files...)
+
+			max := db.baseSize
+
+			var dst string
+			i := 1
+			for ; i < 10; i++ {
+				current := max
+				max *= db.multiplier
+				dst = fmt.Sprint(db.directory, "/l", i, ".lsm")
+				_, err = os.Stat(dst)
+				if err == nil {
+					files = append(files, dst)
+					totalSize += fileSize(dst)
+				}
+
+				if totalSize < current {
+					break
+				}
 			}
 
-			delete := !db.hasLowerLevel(2)
+			delete := !db.hasLowerLevel(i + 1)
 
-			// merge level 0 into level 1
-			err = db.merge(l1, files, delete)
+			// merge level 0 into level i
+			err = db.merge(dst, files, delete)
 			if err != nil {
 				log.Println("error merging into", db.directory, "into l1:", err)
 				break
 			}
 
-			// merge level 1+ into next lowest level if possible
-			db.mergeLowerLevels()
+			/*
+				// merge level 1+ into next lowest level if possible
+				db.mergeLowerLevels()
 
-			files, _ = filepath.Glob(fmt.Sprint(db.directory, "/", "*.tmp"))
-			for _, f := range files {
-				if !strings.Contains(f, "/l0.") {
-					fmt.Println("ll still have tmp", f)
+				files, _ = filepath.Glob(fmt.Sprint(db.directory, "/", "*.tmp"))
+				for _, f := range files {
+					if !strings.Contains(f, "/l0.") {
+						fmt.Println("ll still have tmp", f)
+					}
 				}
-			}
+			*/
 			err = db.reloadReader()
 			if err != nil {
 				log.Println("error reopening readers", db.directory, err)
@@ -89,13 +117,15 @@ func (db *DB) mergeLoop() {
 	db.mergerWaitGroup.Done()
 }
 
+/*
 func (db *DB) mergeLowerLevels() {
 	max := db.baseSize
 	for i := 1; i < 10; i++ {
 		new := fmt.Sprint(db.directory, "/", "l", i, ".lsm")
 		fs, err := os.Stat(new)
+		current := max
 		max *= db.multiplier
-		if err != nil || fs.Size() < int64(max) {
+		if err != nil || fs.Size() < int64(current) {
 			continue
 		}
 
@@ -114,6 +144,7 @@ func (db *DB) mergeLowerLevels() {
 		}
 	}
 }
+*/
 
 func (db *DB) merge(dstfile string, files []string, delete bool) error {
 	m, err := merge.NewMerger(dstfile, files, db.cache, delete, db.blockSize, db.valueSize, db.compression)
