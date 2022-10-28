@@ -34,15 +34,17 @@ type Block struct {
 	count     int32
 	idx       int32 // set to next value to read in forward iter order
 	fixedSize int   // fixed valueSize < 0 == variable length
+	position  int   // position of block in file
 }
 
 // readers are lightweight and can be recreated for each block read
 // fixedValueSize < 0 == variable length
 // every reader needs its own decompressor
-func NewBlock(buf []byte, fixedValueSize int) Block {
+func NewBlock(buf []byte, fixedValueSize, position int) Block {
 	b := Block{
 		fixedSize: fixedValueSize,
 		idx:       -1,
+		position:  position,
 	}
 	pos := 0
 	b.count = int32(varint.Read(buf, &pos))
@@ -116,6 +118,11 @@ func (b *Block) At(idx int) (key []byte, val []byte, delete bool) {
 
 func (b *Block) Len() int {
 	return int(b.count)
+}
+
+// return true if block is loaded from same position
+func (b *Block) Match(pos int) bool {
+	return pos == b.position && len(b.buf) > 0
 }
 
 func (b *Block) InRange(kv *shared.KV) bool {

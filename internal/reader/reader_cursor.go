@@ -70,8 +70,10 @@ func (c *Cursor) Find(kv *shared.KV) FindResult {
 		c.indexes = append(c.indexes, idx)
 	}
 
-	buf := c.f.ReadBlock(ikv.Position)
-	c.block = NewBlock(buf, c.fixedSize)
+	if !c.block.Match(ikv.Position) {
+		buf := c.f.ReadBlock(ikv.Position)
+		c.block = NewBlock(buf, c.fixedSize, ikv.Position)
+	}
 	return c.block.Find(kv, false)
 }
 
@@ -90,8 +92,10 @@ func (c *Cursor) follow(dir Move, ikv *IndexKV, i int) bool {
 		c.indexes = append(c.indexes, idx)
 	}
 
-	buf := c.f.ReadBlock(ikv.Position)
-	c.block = NewBlock(buf, c.fixedSize)
+	if !c.block.Match(ikv.Position) {
+		buf := c.f.ReadBlock(ikv.Position)
+		c.block = NewBlock(buf, c.fixedSize, ikv.Position)
+	}
 	return true
 }
 

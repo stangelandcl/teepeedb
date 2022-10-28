@@ -18,7 +18,7 @@ type IndexKV struct {
 // readers are lightweight and can be recreated for each block read
 func NewIndex(buf []byte) Index {
 	return Index{
-		b: NewBlock(buf, -1),
+		b: NewBlock(buf, -1, -1),
 	}
 }
 
