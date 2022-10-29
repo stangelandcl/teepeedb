@@ -6,11 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/stangelandcl/teepeedb/internal/merge"
-	"github.com/stangelandcl/teepeedb/internal/reader"
 	"github.com/stangelandcl/teepeedb/internal/writer"
 )
 
@@ -31,7 +29,6 @@ type DB struct {
 
 	// options
 	blockSize      int
-	cache          reader.Cache
 	mergeFrequency time.Duration
 
 	// size of level 1
@@ -81,7 +78,6 @@ func Open(directory string, opts ...Opt) (*DB, error) {
 		mergerChan: make(chan int, 2),
 
 		/* options */
-		cache:          &reader.NullCache{},
 		blockSize:      4096,
 		mergeFrequency: time.Hour,
 
@@ -139,7 +135,7 @@ func (db *DB) reloadReader() error {
 			return err
 		}
 
-		r, err = merge.NewReader(matches, db.cache)
+		r, err = merge.NewReader(matches)
 		return err
 	}()
 	if err != nil {
@@ -176,12 +172,16 @@ func (db *DB) Write() (Writer, error) {
 		return Writer{}, fmt.Errorf("teepeedb: database closed")
 	}
 
-	c := atomic.AddInt64(&db.counter, 1) // TODO: reset counter to zero after merge if empty
-	filename := fmt.Sprintf("%v/l0.%016d.lsm", db.directory, c)
+	files, err := filepath.Glob(db.directory + "/l0.*.lsm")
+	if err == nil && len(files) == 0 {
+		db.counter = 0
+	}
+
+	db.counter++
+	filename := fmt.Sprintf("%v/l0.%016d.lsm", db.directory, db.counter)
 	w, err := writer.NewFile(filename+".tmp", db.blockSize)
 	if err != nil {
 		db.writeLock.Unlock()
-
 		return Writer{}, err
 	}
 

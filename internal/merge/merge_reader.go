@@ -18,10 +18,10 @@ type Stats struct {
 }
 
 // files in sorted order. newest first
-func NewReader(files []string, cache reader.Cache) (*Reader, error) {
+func NewReader(files []string) (*Reader, error) {
 	r := &Reader{refcount: 1}
 	for _, f := range files {
-		fr, err := reader.NewFile(f, cache)
+		fr, err := reader.NewFile(f)
 		if err != nil {
 			for _, f := range r.files {
 				f.Close()

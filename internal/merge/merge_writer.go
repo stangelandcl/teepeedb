@@ -7,7 +7,6 @@ import (
 	"os"
 	"sort"
 
-	"github.com/stangelandcl/teepeedb/internal/reader"
 	"github.com/stangelandcl/teepeedb/internal/writer"
 )
 
@@ -26,7 +25,6 @@ type merger struct {
 func NewMerger(
 	dstfile string,
 	files []string,
-	cache reader.Cache,
 	hardDelete bool,
 	blockSize int) (merger, error) {
 	if len(files) == 0 {
@@ -38,7 +36,7 @@ func NewMerger(
 	}
 	var err error
 	if len(files) > 1 {
-		w.r, err = NewReader(files, cache)
+		w.r, err = NewReader(files)
 		if err != nil {
 			return w, err
 		}

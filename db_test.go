@@ -11,7 +11,7 @@ import (
 )
 
 func TestExample(t *testing.T) {
-	db, err := Open("test.db", WithCacheSize(64*1024*1024))
+	db, err := Open("test.db")
 	if err != nil {
 		panic(err)
 	}
@@ -131,7 +131,7 @@ func E[T any](x T, err error) T {
 
 func TestDB(t *testing.T) {
 	os.RemoveAll("test.db")
-	db := E(Open("test.db", WithCacheSize(256*1024*1024)))
+	db := E(Open("test.db"))
 	defer db.Close()
 
 	var err error

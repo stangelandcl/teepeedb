@@ -21,10 +21,13 @@ func E[T any](x T, err error) T {
 	}
 	return x
 }
-
 func TestFile(t *testing.T) {
-	cache := reader.NewCache(256 * 1024 * 1024 / 4096)
+	for i := 0; i < 1; i++ {
+		run()
+	}
+}
 
+func run() {
 	w, err := writer.NewFile("test.db", 4096)
 	if err != nil {
 		panic(err)
@@ -54,7 +57,7 @@ func TestFile(t *testing.T) {
 	fs, _ := os.Stat("test.db")
 	fmt.Println("wrote", count, "in", time.Since(tm), "len", fs.Size())
 
-	r, err := reader.NewFile("test.db", cache)
+	r, err := reader.NewFile("test.db")
 	if err != nil {
 		panic(err)
 	}

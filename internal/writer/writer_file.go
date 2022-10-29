@@ -16,6 +16,13 @@ type File struct {
 }
 
 func NewFile(filename string, blockSize int) (*File, error) {
+	if blockSize < 512 {
+		blockSize = 512
+	}
+	// offsets are 2 bytes but we use 1 bit to store is_delete bit
+	if blockSize > 32768 {
+		blockSize = 32768
+	}
 	fw := &File{
 		footer: shared.FileFooter{
 			BlockSize:   blockSize,

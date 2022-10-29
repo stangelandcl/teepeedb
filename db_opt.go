@@ -2,40 +2,11 @@ package teepeedb
 
 import (
 	"time"
-
-	"github.com/stangelandcl/teepeedb/internal/reader"
 )
 
 type Opt func(db *DB)
 
-// atomic LRU cache, like 2Q algorithm
-type Cache interface {
-	reader.Cache
-}
-
-// new 2Q cache of blockCount blocks.
-// multiply blockCount * block size to estimate cache memory use
-func NewCache(blockCount int) Cache {
-	return reader.NewCache(blockCount)
-}
-
-// cache for holding uncompressed blocks
-// only useful when reading compressed data
-func WithCache(cache Cache) Opt {
-	return func(db *DB) {
-		db.cache = cache
-	}
-}
-
-// cache size in bytes
-// only useful when reading compressed data
-func WithCacheSize(size int) Opt {
-	return func(db *DB) {
-		db.cache = NewCache(size / db.blockSize)
-	}
-}
-
-// size of an individual block in a file. 4K, 8K, 16K, etc. each
+// size of an individual block in a file. 1K, 2K, 4K, 8K, 16K, 32K
 // block with contain a binary search of keys and values and can be compressed
 // 4K is the default.
 func WithBlockSize(size int) Opt {

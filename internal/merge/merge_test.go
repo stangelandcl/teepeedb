@@ -24,9 +24,9 @@ func E[T any](x T, err error) T {
 }
 
 func iterate(filename, f2 string, i, j int) {
-	r, _ := reader.NewFile(filename, nil)
+	r, _ := reader.NewFile(filename)
 	defer r.Close()
-	r2, _ := reader.NewFile(f2, nil)
+	r2, _ := reader.NewFile(f2)
 	defer r2.Close()
 	c := r.Cursor()
 	more := c.First()
@@ -58,7 +58,7 @@ func iterate(filename, f2 string, i, j int) {
 }
 
 func iterate2(files []string, i int) {
-	r, _ := NewReader(files, nil)
+	r, _ := NewReader(files)
 	defer r.Close()
 	c := r.Cursor()
 	more, _ := c.First()
@@ -80,7 +80,6 @@ func TestNoOverlap(t *testing.T) {
 	os.RemoveAll("test.new.db")
 	os.RemoveAll("test.db")
 	os.RemoveAll("test.db.tmp")
-	cache := reader.NewCache(256 * 1024 * 1024 / 4096)
 	w := E(writer.NewFile("test.old.db", 16384))
 
 	count := 100_000
@@ -122,7 +121,7 @@ func TestNoOverlap(t *testing.T) {
 	//iterate2([]string{"test.new.db", "test.old.db"}, 0)
 	//os.Exit(1)
 
-	m, err := NewMerger("test.db", []string{"test.new.db", "test.old.db"}, cache, true, 16384)
+	m, err := NewMerger("test.db", []string{"test.new.db", "test.old.db"}, true, 16384)
 	if err != nil {
 		panic(err)
 	}
@@ -152,7 +151,7 @@ func TestNoOverlap(t *testing.T) {
 	w.Commit()
 	w.Close()
 
-	m, err = NewMerger("test.db", []string{"test.new.db"}, cache, true, 16384)
+	m, err = NewMerger("test.db", []string{"test.new.db"}, true, 16384)
 	if err != nil {
 		panic(err)
 	}
@@ -166,7 +165,7 @@ func TestNoOverlap(t *testing.T) {
 	}
 	m.Close()
 
-	r := E(NewReader([]string{"test.db"}, cache))
+	r := E(NewReader([]string{"test.db"}))
 	defer r.Close()
 	c := r.Cursor()
 	defer c.Close()
@@ -193,7 +192,6 @@ func TestMerge(t *testing.T) {
 	os.RemoveAll("test.old.db")
 	os.RemoveAll("test.new.db")
 	os.RemoveAll("test.db")
-	cache := reader.NewCache(256 * 1024 * 1024 / 4096)
 	w := E(writer.NewFile("test.old.db", 16384))
 
 	var err error
@@ -245,7 +243,7 @@ func TestMerge(t *testing.T) {
 	}
 	fmt.Println("wrote", 500_000, "in", time.Since(tm))
 
-	r := E(NewReader([]string{"test.new.db", "test.old.db"}, cache))
+	r := E(NewReader([]string{"test.new.db", "test.old.db"}))
 
 	tm = time.Now()
 	c := r.Cursor()
@@ -445,7 +443,7 @@ func TestMerge(t *testing.T) {
 
 	tm = time.Now()
 
-	m, err := NewMerger("test.db.tmp", []string{"test.new.db", "test.old.db"}, cache, true, 16384)
+	m, err := NewMerger("test.db.tmp", []string{"test.new.db", "test.old.db"}, true, 16384)
 	if err != nil {
 		panic(err)
 	}
@@ -460,7 +458,7 @@ func TestMerge(t *testing.T) {
 	m.Close()
 	c.Close()
 	r.Close()
-	r = E(NewReader([]string{"test.db.tmp"}, cache))
+	r = E(NewReader([]string{"test.db.tmp"}))
 	defer r.Close()
 	c = r.Cursor()
 	defer c.Close()
