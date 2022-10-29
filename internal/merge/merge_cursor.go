@@ -22,115 +22,154 @@ func (c *Cursor) Close() {
 	}
 }
 
-func (c *Cursor) First(kv *shared.KV) bool {
-	return c.end(kv, 1, reader.First)
+func (c *Cursor) First() (more, delete bool) {
+	return c.end(1)
 }
 
-func (c *Cursor) Last(kv *shared.KV) bool {
-	return c.end(kv, -1, reader.Last)
+func (c *Cursor) Last() (more, delete bool) {
+	return c.end(-1)
 }
 
-func (c *Cursor) end(kv *shared.KV, order int, start reader.Move) bool {
-	c.heap.Values = nil
+func (c *Cursor) end(order int) (more, delete bool) {
+	c.heap.Values = c.heap.Values[:0]
 	for i, cur := range c.cursors {
 		key := Position{
 			Cursor: cur,
 			Index:  i,
 		}
 
-		found := key.Cursor.Move(start, &key.KV)
+		var found bool
+		if order == 1 {
+			found = key.Cursor.First()
+		} else {
+			found = key.Cursor.Last()
+		}
 		if found {
+			key.Key, key.Delete = key.Cursor.Key()
 			c.heap.Values = append(c.heap.Values, key)
 		}
 	}
-	c.heap.Init(order)
 	if len(c.heap.Values) == 0 {
-		return false
+		return false, false
 	}
+	c.heap.Init(order)
 	key := &c.heap.Values[0]
-	*kv = key.KV
-	return true
+	return true, key.Delete
 }
 
-func (c *Cursor) Next(kv *shared.KV) bool {
-	return c.move(kv, 1, reader.Next)
+func (c *Cursor) Next() (more, delete bool) {
+	return c.move(1)
 }
 
-func (c *Cursor) Previous(kv *shared.KV) bool {
-	return c.move(kv, -1, reader.Previous)
+func (c *Cursor) Previous() (more, delete bool) {
+	return c.move(-1)
 }
 
-func (c *Cursor) move(kv *shared.KV, order int, dir reader.Move) bool {
+func (c *Cursor) move(order int) (more, delete bool) {
+	next := order == 1
 	last := c.heap.Pop()
-
+	var found bool
 	// increment cursor for current key and for all older levels
 	// that are less or equal to that key
 	for len(c.heap.Values) > 0 {
 		key := &c.heap.Values[0]
-		if bytes.Compare(key.KV.Key, last.KV.Key)*order > 0 {
+		if bytes.Compare(key.Key, last.Key)*order > 0 {
 			break
 		}
-		found := key.Cursor.Move(dir, &key.KV)
-		if found {
-			c.heap.Fix(0)
-		} else {
-			c.heap.Pop()
+
+		for {
+			if next {
+				found = key.Cursor.Next()
+			} else {
+				found = key.Cursor.Previous()
+			}
+			if !found {
+				c.heap.Pop()
+				break
+			}
+
+			key.Key, key.Delete = key.Cursor.Key()
+			if bytes.Compare(key.Key, last.Key)*order > 0 {
+				c.heap.Fix(0)
+				break
+			}
 		}
 	}
 
-	found := last.Cursor.Move(dir, &last.KV)
+	if next {
+		found = last.Cursor.Next()
+	} else {
+		found = last.Cursor.Previous()
+	}
 	if found {
+		last.Key, last.Delete = last.Cursor.Key()
 		c.heap.Push(last)
 	}
 
 	if len(c.heap.Values) == 0 {
-		return false
+		return false, false
 	}
+	/*
+		more := c.heap.Values[0].Cursor.Next()
+		if !more {
+			return false
+		}*/
 	key := &c.heap.Values[0]
-	*kv = key.KV
-	return true
+	return true, key.Delete
 }
 
-func (c *Cursor) Get(kv *shared.KV) bool {
-	c.heap.Values = nil
+/*
+func (c *Cursor) Get(key []byte) (found, delete bool) {
+	c.heap.Values = c.heap.Values[:0]
 	for _, cur := range c.cursors {
-		tmp := *kv
-		found := cur.Find(&tmp)
+		found := cur.Find(key)
 		if found == reader.Found {
-			*kv = tmp
-			return true
+			_, delete = cur.Key()
+			return true, delete
 		}
 	}
-	return false
+	return false, false
 }
+*/
 
 // returns Found for exact match
 // Partial for found a value greater than key.
 // NotFound for no values >= key
-func (c *Cursor) Find(kv *shared.KV) reader.FindResult {
-	c.heap.Values = nil
+func (c *Cursor) Find(find []byte) (reader.FindResult, bool) {
+	c.heap.Values = c.heap.Values[:0]
 	for i, cur := range c.cursors {
 		key := Position{
 			Cursor: cur,
 			Index:  i,
 		}
-		key.KV.Key = kv.Key
-		found := key.Cursor.Find(&key.KV)
+		found := key.Cursor.Find(find)
 		if found > 0 {
+			key.Key, key.Delete = cur.Key()
 			c.heap.Values = append(c.heap.Values, key)
 		}
 	}
 
 	c.heap.Init(1)
 	if len(c.heap.Values) == 0 {
-		return reader.NotFound
+		return reader.NotFound, false
 	}
 
 	v := &c.heap.Values[0]
-	found := bytes.Equal(v.KV.Key, kv.Key)
-	*kv = v.KV
+	found := bytes.Equal(v.Key, find)
 	if found {
-		return reader.Found
+		return reader.Found, v.Delete
 	}
-	return reader.FoundGreater
+	return reader.FoundGreater, v.Delete
+}
+
+func (c *Cursor) Current() shared.KV {
+	return c.heap.Values[0].Cursor.Current()
+}
+
+func (c *Cursor) Key() ([]byte, bool) {
+	return c.heap.Values[0].Cursor.Key()
+}
+
+func (c *Cursor) Value() []byte {
+	return c.heap.Values[0].Cursor.Value()
 }

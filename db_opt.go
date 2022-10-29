@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/stangelandcl/teepeedb/internal/reader"
-	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 type Opt func(db *DB)
@@ -42,22 +41,6 @@ func WithCacheSize(size int) Opt {
 func WithBlockSize(size int) Opt {
 	return func(db *DB) {
 		db.blockSize = size
-	}
-}
-
-// size of value if fixed size, 0 if no value just keys, -1 for variable size value
-// -1 is the default
-func WithValueSize(size int) Opt {
-	return func(db *DB) {
-		db.valueSize = size
-	}
-}
-
-// use LZ4 to compress each block.
-// decreases size but could increase random read performance
-func WithLz4() Opt {
-	return func(db *DB) {
-		db.compression = shared.Lz4
 	}
 }
 

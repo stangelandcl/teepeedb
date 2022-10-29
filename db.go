@@ -11,7 +11,6 @@ import (
 
 	"github.com/stangelandcl/teepeedb/internal/merge"
 	"github.com/stangelandcl/teepeedb/internal/reader"
-	"github.com/stangelandcl/teepeedb/internal/shared"
 	"github.com/stangelandcl/teepeedb/internal/writer"
 )
 
@@ -31,9 +30,7 @@ type DB struct {
 	closed          bool
 
 	// options
-	compression    shared.BlockFormat
 	blockSize      int
-	valueSize      int
 	cache          reader.Cache
 	mergeFrequency time.Duration
 
@@ -86,8 +83,6 @@ func Open(directory string, opts ...Opt) (*DB, error) {
 		/* options */
 		cache:          &reader.NullCache{},
 		blockSize:      4096,
-		valueSize:      -1,
-		compression:    shared.Raw,
 		mergeFrequency: time.Hour,
 
 		baseSize:   16 * 1024 * 1024,
@@ -183,7 +178,7 @@ func (db *DB) Write() (Writer, error) {
 
 	c := atomic.AddInt64(&db.counter, 1) // TODO: reset counter to zero after merge if empty
 	filename := fmt.Sprintf("%v/l0.%016d.lsm", db.directory, c)
-	w, err := writer.NewFile(filename+".tmp", db.blockSize, db.valueSize, db.compression)
+	w, err := writer.NewFile(filename+".tmp", db.blockSize)
 	if err != nil {
 		db.writeLock.Unlock()
 

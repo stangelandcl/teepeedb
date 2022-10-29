@@ -15,7 +15,7 @@ func TestFooter(t *testing.T) {
 		Inserts:           7,
 		LastIndexPosition: 8,
 		ValueSize:         9,
-		BlockFormat:       Lz4,
+		BlockFormat:       1,
 	}
 
 	buf := x.Marshal()

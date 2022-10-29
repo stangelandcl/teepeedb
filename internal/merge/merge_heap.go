@@ -38,13 +38,13 @@ import (
 	"bytes"
 
 	"github.com/stangelandcl/teepeedb/internal/reader"
-	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 type Position struct {
-	KV     shared.KV
+	Key    []byte
 	Cursor *reader.Cursor
 	Index  int
+	Delete bool
 }
 
 type heap struct {
@@ -100,7 +100,7 @@ func (h *heap) up(j int) {
 		if i == j {
 			break
 		} // parent
-		c := bytes.Compare(h.Values[j].KV.Key, h.Values[i].KV.Key) * h.Order
+		c := bytes.Compare(h.Values[j].Key, h.Values[i].Key) * h.Order
 		if c > 0 { // not less
 			break
 		}
@@ -124,12 +124,12 @@ func (h *heap) down(i0, n int) bool {
 		j := j1
 		j2 := j1 + 1 // left child
 		if j2 < n {
-			c := bytes.Compare(h.Values[j2].KV.Key, h.Values[j1].KV.Key) * h.Order
+			c := bytes.Compare(h.Values[j2].Key, h.Values[j1].Key) * h.Order
 			if c < 0 || (c == 0 && h.Values[j2].Index < h.Values[j1].Index) { // less
 				j = j2 // = 2*i + 2  // right child
 			}
 		}
-		c := bytes.Compare(h.Values[j].KV.Key, h.Values[i].KV.Key) * h.Order
+		c := bytes.Compare(h.Values[j].Key, h.Values[i].Key) * h.Order
 		if c > 0 { // not less
 			break
 		}

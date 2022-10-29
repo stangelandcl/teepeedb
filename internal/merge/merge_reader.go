@@ -1,7 +1,7 @@
 package merge
 
 import (
-	"log"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/stangelandcl/teepeedb/internal/reader"
@@ -9,7 +9,7 @@ import (
 )
 
 type Reader struct {
-	files    []reader.File
+	files    []*reader.File
 	refcount int64
 }
 
@@ -26,8 +26,7 @@ func NewReader(files []string, cache reader.Cache) (*Reader, error) {
 			for _, f := range r.files {
 				f.Close()
 			}
-			log.Printf("merge reader error opening %v: %v\n", f, err)
-			return nil, err
+			return nil, fmt.Errorf("teepeedb: merge reader error opening %v: %v", f, err)
 		}
 		r.files = append(r.files, fr)
 	}
@@ -47,6 +46,7 @@ func (r *Reader) Cursor() *Cursor {
 		reader: r,
 	}
 	if atomic.AddInt64(&r.refcount, 1) <= 1 {
+		atomic.AddInt64(&r.refcount, -1)
 		return c // already closed
 	}
 	for _, f := range r.files {

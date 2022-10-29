@@ -8,7 +8,6 @@ import (
 	"sort"
 
 	"github.com/stangelandcl/teepeedb/internal/reader"
-	"github.com/stangelandcl/teepeedb/internal/shared"
 	"github.com/stangelandcl/teepeedb/internal/writer"
 )
 
@@ -29,8 +28,7 @@ func NewMerger(
 	files []string,
 	cache reader.Cache,
 	hardDelete bool,
-	blockSize, valueSize int,
-	compression shared.BlockFormat) (merger, error) {
+	blockSize int) (merger, error) {
 	if len(files) == 0 {
 		return merger{}, fmt.Errorf("teepeedb: no files to merge")
 	}
@@ -44,7 +42,7 @@ func NewMerger(
 		if err != nil {
 			return w, err
 		}
-		w.w, err = writer.NewFile(dstfile+".tmp", blockSize, valueSize, compression)
+		w.w, err = writer.NewFile(dstfile+".tmp", blockSize)
 		if err != nil {
 			w.r.Close()
 			return w, err
@@ -62,18 +60,20 @@ func (w *merger) Run() error {
 	c := w.r.Cursor()
 	defer c.Close()
 	keys := []uint32{}
-	kv := shared.KV{}
-	more := c.First(&kv)
+	more, _ := c.First()
+	i := 0
 	for more {
+		kv := c.Current()
 		keys = append(keys, binary.BigEndian.Uint32(kv.Key))
-
 		if !kv.Delete || !w.delete {
 			err := w.w.Add(&kv)
 			if err != nil {
 				return err
 			}
 		}
-		more = c.Next(&kv)
+
+		more, _ = c.Next()
+		i++
 	}
 
 	sort.Slice(keys, func(i, j int) bool {

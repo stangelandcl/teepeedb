@@ -11,7 +11,7 @@ import (
 )
 
 func TestExample(t *testing.T) {
-	db, err := Open("test.db", WithCacheSize(64*1024*1024), WithLz4())
+	db, err := Open("test.db", WithCacheSize(64*1024*1024))
 	if err != nil {
 		panic(err)
 	}
@@ -25,14 +25,15 @@ func TestExample(t *testing.T) {
 	// always call close whether calling commit or not
 	//defer w.Close()
 	tm := time.Now()
+	tmp := [4]byte{}
 	for i := 0; i < count; i++ {
 		// data is sorted in memcmp/bytes.Compare order so use big-endian
 		// when serializing integers as keys to maintain their numeric order
-		k := binary.BigEndian.AppendUint32(nil, uint32(i))
+		binary.BigEndian.PutUint32(tmp[:], uint32(i))
 
 		// inserts and deletes must happen in sorted order within a transaction
 		// .Add() will fail if bytes.Compare(k, lastKey) <= 0
-		err = w.Add(k, k)
+		err = w.Add(tmp[:], tmp[:])
 		if err != nil {
 			panic(err)
 		}
@@ -60,18 +61,37 @@ func TestExample(t *testing.T) {
 
 	kv := KV{}
 	i := uint32(0)
-	// always call first/last/find before next/previous
-	more := c.First(&kv)
-	for more {
-		k := binary.BigEndian.Uint32(kv.Key)
-		v := binary.BigEndian.Uint32(kv.Value)
-		if i != k || i != v {
-			log.Panicln("i", i, "k", k, "v", v)
+	for j := 0; j < 3; j++ {
+		i = 0
+		tm = time.Now()
+		// always call first/last/find before next/previous
+		more := c.First()
+		for more {
+			kv := c.Current()
+			k := binary.BigEndian.Uint32(kv.Key)
+			v := binary.BigEndian.Uint32(kv.Value)
+			if i != k || i != v {
+				log.Panicln("i", i, "k", k, "v", v)
+			}
+			more = c.Next()
+			i++
 		}
-		more = c.Next(&kv)
-		i++
+		fmt.Println("iterated", i, "in", time.Since(tm))
+
+		tm = time.Now()
+		i = uint32(0)
+		// always call first/last/find before next/previous
+		more = c.First()
+		for more {
+			k := binary.BigEndian.Uint32(c.Key())
+			if i != k {
+				log.Panicln("i", i, "k", k)
+			}
+			more = c.Next()
+			i++
+		}
+		fmt.Println("iterated keys", i, "in", time.Since(tm))
 	}
-	fmt.Println("iterated", i, "in", time.Since(tm))
 
 	keys := make([]uint32, count)
 	for i := 0; i < count; i++ {
@@ -84,8 +104,7 @@ func TestExample(t *testing.T) {
 	buf := [4]byte{}
 	for i := 0; i < count/10; i++ {
 		binary.BigEndian.PutUint32(buf[:], uint32(i))
-		kv.Key = buf[:]
-		found := c.Find(&kv)
+		found := c.Find(buf[:])
 		switch found {
 		case Found:
 			//exact match
@@ -121,7 +140,9 @@ func TestDB(t *testing.T) {
 	defer w.Close()
 	tm := time.Now()
 	for i := 0; i < count; i++ {
-		k := binary.BigEndian.AppendUint32(nil, uint32(i))
+		tmp := [4]byte{}
+		binary.BigEndian.PutUint32(tmp[:], uint32(i))
+		k := tmp[:]
 		err = w.Add(k, k)
 		if err != nil {
 			panic(err)
@@ -140,44 +161,53 @@ func TestDB(t *testing.T) {
 		panic(err)
 	}
 	fmt.Println("added", count, "in", time.Since(tm))
+	//w.Close()
+	//db.Close()
+	//os.Exit(1)
 
 	tm = time.Now()
 	c := db.Cursor()
 	defer c.Close()
 
-	kv := KV{}
 	i := uint32(0)
-	more := c.First(&kv)
+	more := c.First()
 	for more {
+		kv := c.Current()
 		k := binary.BigEndian.Uint32(kv.Key)
 		v := binary.BigEndian.Uint32(kv.Value)
 		if i != k || i != v {
 			log.Panicln("i", i, "k", k, "v", v)
 		}
-		more = c.Next(&kv)
+		more = c.Next()
 		i++
 	}
 	fmt.Println("iterated", i, "in", time.Since(tm))
 
-	kv.Key = binary.BigEndian.AppendUint32(nil, uint32(25_578))
-	if c.Find(&kv) == Found {
+	key := binary.BigEndian.AppendUint32(nil, uint32(25_578))
+	if c.Find(key) == Found {
+		kv := c.Current()
 		fmt.Println("found", binary.BigEndian.Uint32(kv.Value))
 
-		if c.Next(&kv) {
+		if c.Next() {
+			kv := c.Current()
 			fmt.Println("next", binary.BigEndian.Uint32(kv.Key), binary.BigEndian.Uint32(kv.Value))
-			if c.Next(&kv) {
+			if c.Next() {
+				kv := c.Current()
 				fmt.Println("next", binary.BigEndian.Uint32(kv.Key), binary.BigEndian.Uint32(kv.Value))
 			}
 		}
 	}
 
-	kv.Key = binary.BigEndian.AppendUint32(nil, uint32(25_578))
-	if c.Find(&kv) == Found {
+	key = binary.BigEndian.AppendUint32(nil, uint32(25_578))
+	if c.Find(key) == Found {
+		kv := c.Current()
 		fmt.Println("found", binary.BigEndian.Uint32(kv.Value))
 
-		if c.Previous(&kv) {
+		if c.Previous() {
+			kv = c.Current()
 			fmt.Println("prev", binary.BigEndian.Uint32(kv.Key), binary.BigEndian.Uint32(kv.Value))
-			if c.Previous(&kv) {
+			if c.Previous() {
+				kv = c.Current()
 				fmt.Println("prev", binary.BigEndian.Uint32(kv.Key), binary.BigEndian.Uint32(kv.Value))
 			}
 		}

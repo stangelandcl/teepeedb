@@ -147,7 +147,7 @@ func (db *DB) mergeLowerLevels() {
 */
 
 func (db *DB) merge(dstfile string, files []string, delete bool) error {
-	m, err := merge.NewMerger(dstfile, files, db.cache, delete, db.blockSize, db.valueSize, db.compression)
+	m, err := merge.NewMerger(dstfile, files, db.cache, delete, db.blockSize)
 	if err != nil {
 		return err
 	}

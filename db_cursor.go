@@ -39,80 +39,63 @@ func (c *Cursor) Close() {
 	c.m.Close()
 }
 
+/*
 // set Key on input, value will be set if found is true
-func (c *Cursor) Get(kv *KV) bool {
-	tmp := shared.KV{
-		Key: kv.Key,
-	}
-
-	found := c.m.Get(&tmp)
-	found = found && !tmp.Delete
-	kv.Key = tmp.Key
-	kv.Value = tmp.Value
+func (c *Cursor) Get(key []byte) bool {
+	found, delete := c.m.Get(key)
+	found = found && !delete
 	return found
 }
+*/
 
 // call First or Find once before Previous
 // if more is true kv is valid until next call to cursor function
-func (c *Cursor) Next(kv *KV) bool {
-	tmp := shared.KV{}
-
+func (c *Cursor) Next() bool {
 	for {
-		more := c.m.Next(&tmp)
+		more, delete := c.m.Next()
 		if !more {
 			return false
 		}
-		if !tmp.Delete {
+		if !delete {
 			break
 		}
 	}
-	kv.Key = tmp.Key
-	kv.Value = tmp.Value
 	return true
 }
 
 // call Last or Find once before Previous
 // if more is true kv is valid until next call to cursor function
-func (c *Cursor) Previous(kv *KV) bool {
-	tmp := shared.KV{}
+func (c *Cursor) Previous() bool {
 
 	for {
-		more := c.m.Previous(&tmp)
+		more, delete := c.m.Previous()
 		if !more {
 			return false
 		}
-		if !tmp.Delete {
+		if !delete {
 			break
 		}
 	}
-	kv.Key = tmp.Key
-	kv.Value = tmp.Value
 	return true
 }
 
 // go to first key-value pair and return it if result is true
 // if result is false then DB is empty
-func (c *Cursor) First(kv *KV) bool {
-	tmp := shared.KV{}
-	more := c.m.First(&tmp)
-	for more && tmp.Delete {
-		more = c.m.Next(&tmp)
+func (c *Cursor) First() bool {
+	more, delete := c.m.First()
+	for more && delete {
+		more, delete = c.m.Next()
 	}
-	kv.Key = tmp.Key
-	kv.Value = tmp.Value
 	return more
 }
 
 // go to last key-value pair and return it if result is true
 // if result is false then DB is empty
-func (c *Cursor) Last(kv *KV) bool {
-	tmp := shared.KV{}
-	more := c.m.Last(&tmp)
-	for more && tmp.Delete {
-		more = c.m.Previous(&tmp)
+func (c *Cursor) Last() bool {
+	more, delete := c.m.Last()
+	for more && delete {
+		more, delete = c.m.Previous()
 	}
-	kv.Key = tmp.Key
-	kv.Value = tmp.Value
 	return more
 }
 
@@ -121,25 +104,33 @@ func (c *Cursor) Last(kv *KV) bool {
 // returns Found for exact match
 // FoundGreater for a value greater than key.
 // NotFound for no values >= key
-func (c *Cursor) Find(kv *KV) FindResult {
-	tmp := shared.KV{
-		Key: kv.Key,
-	}
-
-	result := FindResult(c.m.Find(&tmp))
+func (c *Cursor) Find(find []byte) FindResult {
+	rs, delete := c.m.Find(find)
+	result := FindResult(rs)
 	if result == NotFound {
 		return result
 	}
 
-	for tmp.Delete {
+	for delete {
 		var more bool
-		more = c.m.Next(&tmp)
+		more, delete = c.m.Next()
 		if !more {
 			return NotFound
 		}
 		result = FoundGreater
 	}
-	kv.Key = tmp.Key
-	kv.Value = tmp.Value
 	return result
+}
+
+func (c *Cursor) Current() shared.KV {
+	return c.m.Current()
+}
+
+func (c *Cursor) Key() []byte {
+	k, _ := c.m.Key()
+	return k
+}
+
+func (c *Cursor) Value() []byte {
+	return c.m.Value()
 }
