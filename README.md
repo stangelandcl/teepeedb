@@ -8,21 +8,21 @@ Only allows sorted batch inserts. Individual writes should be queued and sorted 
 
 Naive merging. Does not split files for faster merging. Instead merges whole files into each level.
 
-Supports LZ4 compression. Handles 100 million keys with smallish values with no problems as long as inserts aren't in too small a batches or too constant.
+Uses LZ4 compression. Handles 100 million keys with smallish values with no problems as long as inserts aren't in too small a batches or too constant.
 
 Merges happen in background goroutines. No prefix key compression, but LZ4 should accomplish the same thing.
 Intended for one LSM DB per table/dataset and no transactions across tables.
-Supports sharing a block cache across multiple databases so having many open in the
-same process is not an issue.
+same process is not an issue. No cache so query in bulk in sorted order
 
 Uses memory mapping for reads.
 
 A teepee has the same basic shape as a log-structured merge tree, triangular. More importantly teepeedb is fun to say.
 
 ### Example
+From db_test.go TestExample()
 
 ```go
-db, err := Open("test.db", WithCacheSize(64*1024*1024), WithLz4())
+db, err := Open("test.db")
 if err != nil {
     panic(err)
 }
@@ -34,16 +34,17 @@ if err != nil {
     panic(err)
 }
 // always call close whether calling commit or not
-defer w.Close()
+//defer w.Close()
 tm := time.Now()
+tmp := [4]byte{}
 for i := 0; i < count; i++ {
     // data is sorted in memcmp/bytes.Compare order so use big-endian
     // when serializing integers as keys to maintain their numeric order
-    k := binary.BigEndian.AppendUint32(nil, uint32(i))
+    binary.BigEndian.PutUint32(tmp[:], uint32(i))
 
     // inserts and deletes must happen in sorted order within a transaction
     // .Add() will fail if bytes.Compare(k, lastKey) <= 0
-    err = w.Add(k, k)
+    err = w.Add(tmp[:], tmp[:])
     if err != nil {
         panic(err)
     }
@@ -71,18 +72,37 @@ defer c.Close()
 
 kv := KV{}
 i := uint32(0)
-// always call first/last/find before next/previous
-more := c.First(&kv)
-for more {
-    k := binary.BigEndian.Uint32(kv.Key)
-    v := binary.BigEndian.Uint32(kv.Value)
-    if i != k || i != v {
-        log.Panicln("i", i, "k", k, "v", v)
+for j := 0; j < 3; j++ {
+    i = 0
+    tm = time.Now()
+    // always call first/last/find before next/previous
+    more := c.First()
+    for more {
+        kv := c.Current()
+        k := binary.BigEndian.Uint32(kv.Key)
+        v := binary.BigEndian.Uint32(kv.Value)
+        if i != k || i != v {
+            log.Panicln("i", i, "k", k, "v", v)
+        }
+        more = c.Next()
+        i++
     }
-    more = c.Next(&kv)
-    i++
+    fmt.Println("iterated", i, "in", time.Since(tm))
+
+    tm = time.Now()
+    i = uint32(0)
+    // always call first/last/find before next/previous
+    more = c.First()
+    for more {
+        k := binary.BigEndian.Uint32(c.Key())
+        if i != k {
+            log.Panicln("i", i, "k", k)
+        }
+        more = c.Next()
+        i++
+    }
+    fmt.Println("iterated keys", i, "in", time.Since(tm))
 }
-fmt.Println("iterated", i, "in", time.Since(tm))
 
 keys := make([]uint32, count)
 for i := 0; i < count; i++ {
@@ -95,8 +115,7 @@ finds := 0
 buf := [4]byte{}
 for i := 0; i < count/10; i++ {
     binary.BigEndian.PutUint32(buf[:], uint32(i))
-    kv.Key = buf[:]
-    found := c.Find(&kv)
+    found := c.Find(buf[:])
     switch found {
     case Found:
         //exact match
