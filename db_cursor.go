@@ -8,7 +8,6 @@ import (
 )
 
 type FindResult int
-type Which int
 
 const (
 	// no values greater or equal to key exist
@@ -17,10 +16,6 @@ const (
 	Found FindResult = FindResult(reader.Found)
 	// found a value greater or equal to key
 	FoundGreater FindResult = FindResult(reader.FoundGreater)
-
-	Key   Which = Which(block.Key)
-	Value Which = Which(block.Val)
-	Both  Which = Which(block.Both)
 )
 
 // Not found and nothing greater found
@@ -128,6 +123,20 @@ func (c *Cursor) Find(find []byte) FindResult {
 	return result
 }
 
-func (c *Cursor) Current(which Which, kv *shared.KV) {
-	c.m.Current(block.Which(which), kv)
+func (c *Cursor) Key() []byte {
+	kv := shared.KV{}
+	c.m.Current(block.Key, &kv)
+	return kv.Key
+}
+
+func (c *Cursor) Value() []byte {
+	kv := shared.KV{}
+	c.m.Current(block.Val, &kv)
+	return kv.Value
+}
+
+func (c *Cursor) Current() (key, value []byte) {
+	kv := shared.KV{}
+	c.m.Current(block.Both, &kv)
+	return kv.Key, kv.Value
 }
