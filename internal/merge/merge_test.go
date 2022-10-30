@@ -23,58 +23,6 @@ func E[T any](x T, err error) T {
 	return x
 }
 
-func iterate(filename, f2 string, i, j int) {
-	r, _ := reader.NewFile(filename)
-	defer r.Close()
-	r2, _ := reader.NewFile(f2)
-	defer r2.Close()
-	c := r.Cursor()
-	more := c.First()
-	for more {
-		kv := c.Current()
-		k := binary.BigEndian.Uint32(kv.Key)
-		v := binary.BigEndian.Uint32(kv.Value)
-		if int(k) != i || int(v) != i {
-			log.Panicln("iterate error at", i)
-		}
-		more = c.Next()
-		i++
-	}
-	r.Close()
-
-	c2 := r2.Cursor()
-	more = c2.First()
-	for more {
-		kv := c2.Current()
-		k := binary.BigEndian.Uint32(kv.Key)
-		v := binary.BigEndian.Uint32(kv.Value)
-		if int(k) != j || int(v) != j {
-			log.Panicln("iterate error at", j)
-		}
-		more = c2.Next()
-		j++
-	}
-	fmt.Println("iterated", i, j)
-}
-
-func iterate2(files []string, i int) {
-	r, _ := NewReader(files)
-	defer r.Close()
-	c := r.Cursor()
-	more, _ := c.First()
-	for more {
-		kv := c.Current()
-		k := binary.BigEndian.Uint32(kv.Key)
-		v := binary.BigEndian.Uint32(kv.Value)
-		if int(k) != i || int(v) != i {
-			log.Panicln("iterate error at", i, int(k), int(v))
-		}
-		more, _ = c.Next()
-		i++
-	}
-	fmt.Println("iterated", i)
-}
-
 func TestNoOverlap(t *testing.T) {
 	os.RemoveAll("test.old.db")
 	os.RemoveAll("test.new.db")
@@ -114,12 +62,6 @@ func TestNoOverlap(t *testing.T) {
 	}
 	w.Commit()
 	w.Close()
-
-	//iterate("test.old.db", count)
-	//iterate("test.new.db", "test.old.db", 0, count)
-	//iterate2([]string{"test.new.db"}, 0)
-	//iterate2([]string{"test.new.db", "test.old.db"}, 0)
-	//os.Exit(1)
 
 	m, err := NewMerger("test.db", []string{"test.new.db", "test.old.db"}, true, 16384)
 	if err != nil {
@@ -443,10 +385,7 @@ func TestMerge(t *testing.T) {
 
 	tm = time.Now()
 
-	m, err := NewMerger("test.db.tmp", []string{"test.new.db", "test.old.db"}, true, 16384)
-	if err != nil {
-		panic(err)
-	}
+	m := E(NewMerger("test.db.tmp", []string{"test.new.db", "test.old.db"}, true, 16384))
 	err = m.Run()
 	if err != nil {
 		panic(err)

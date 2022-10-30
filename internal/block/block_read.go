@@ -39,14 +39,14 @@ func (b *ReadBlock) Close() {
 	pool.Put(b)
 }
 
-func (b ReadBlock) KeyOffset(idx int) (offset int, delete bool) {
+func (b *ReadBlock) KeyOffset(idx int) (offset int, delete bool) {
 	x := int(b.KeyOffsets[idx])
 	offset = x >> 1
 	delete = x&1 != 0
 	return
 }
 
-func (b ReadBlock) Key(idx int) (key []byte, delete bool) {
+func (b *ReadBlock) Key(idx int) (key []byte, delete bool) {
 	var start, end int
 	start, delete = b.KeyOffset(idx)
 	idx++
