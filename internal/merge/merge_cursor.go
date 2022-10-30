@@ -3,6 +3,7 @@ package merge
 import (
 	"bytes"
 
+	"github.com/stangelandcl/teepeedb/internal/block"
 	"github.com/stangelandcl/teepeedb/internal/reader"
 	"github.com/stangelandcl/teepeedb/internal/shared"
 )
@@ -144,7 +145,7 @@ func (c *Cursor) Find(find []byte) (reader.FindResult, bool) {
 		}
 		found := key.Cursor.Find(find)
 		if found > 0 {
-			key.Key, key.Delete = cur.Key()
+			key.Key, key.Delete = key.Cursor.Key()
 			c.heap.Values = append(c.heap.Values, key)
 		}
 	}
@@ -162,14 +163,6 @@ func (c *Cursor) Find(find []byte) (reader.FindResult, bool) {
 	return reader.FoundGreater, v.Delete
 }
 
-func (c *Cursor) Current() shared.KV {
-	return c.heap.Values[0].Cursor.Current()
-}
-
-func (c *Cursor) Key() ([]byte, bool) {
-	return c.heap.Values[0].Cursor.Key()
-}
-
-func (c *Cursor) Value() []byte {
-	return c.heap.Values[0].Cursor.Value()
+func (c *Cursor) Current(which block.Which, kv *shared.KV) {
+	c.heap.Values[0].Cursor.Current(which, kv)
 }

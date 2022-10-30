@@ -1,6 +1,7 @@
 package reader
 
 import (
+	"github.com/stangelandcl/teepeedb/internal/block"
 	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
@@ -10,26 +11,12 @@ type Cursor struct {
 	indexes []Index
 }
 
-func (c *Cursor) KeyOnly() []byte {
-	k, _ := c.block.Key(c.block.idx)
-	return k
-}
-
 func (c *Cursor) Key() ([]byte, bool) {
-	return c.block.Key(c.block.idx)
+	return c.block.rb.Key(c.block.idx)
 }
 
-func (c *Cursor) Value() []byte {
-	return c.block.Value(c.block.idx)
-}
-
-func (c *Cursor) Current() shared.KV {
-	k, d := c.Key()
-	return shared.KV{
-		Key:    k,
-		Delete: d,
-		Value:  c.Value(),
-	}
+func (c *Cursor) Current(which block.Which, kv *shared.KV) {
+	c.block.At(c.block.idx, which, kv)
 }
 
 func (c *Cursor) First() bool {

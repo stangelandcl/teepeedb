@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stangelandcl/teepeedb/internal/block"
 	"github.com/stangelandcl/teepeedb/internal/reader"
 	"github.com/stangelandcl/teepeedb/internal/shared"
 	"github.com/stangelandcl/teepeedb/internal/writer"
@@ -116,7 +117,7 @@ func TestNoOverlap(t *testing.T) {
 	i := 0
 	more, _ := c.First()
 	for more {
-		kv = c.Current()
+		c.Current(block.Both, &kv)
 		k := binary.BigEndian.Uint32(kv.Key)
 		v := binary.BigEndian.Uint32(kv.Value)
 		if i < 10 {
@@ -193,7 +194,7 @@ func TestMerge(t *testing.T) {
 	i := 0
 	more, _ := c.First()
 	for more {
-		kv = c.Current()
+		c.Current(block.Both, &kv)
 		k := binary.BigEndian.Uint32(kv.Key)
 		v := binary.BigEndian.Uint32(kv.Value)
 		if i < 500_000 && v != math.MaxUint32 {
@@ -251,7 +252,7 @@ func TestMerge(t *testing.T) {
 		binary.BigEndian.PutUint32(buf, uint32(i))
 		f, _ := c.Find(buf)
 		if f == reader.Found {
-			kv = c.Current()
+			c.Current(block.Both, &kv)
 			k := binary.BigEndian.Uint32(kv.Key)
 			v := binary.BigEndian.Uint32(kv.Value)
 			if i < 500_000 && v != math.MaxUint32 {
@@ -346,7 +347,7 @@ func TestMerge(t *testing.T) {
 		binary.BigEndian.PutUint32(buf, uint32(id))
 		f, _ := c.Find(buf)
 		if f == reader.Found {
-			kv = c.Current()
+			c.Current(block.Both, &kv)
 			v := binary.BigEndian.Uint32(kv.Value)
 			if id < 500_000 && v != math.MaxUint32 {
 				log.Panicln("i", id, "v", v)
@@ -370,7 +371,7 @@ func TestMerge(t *testing.T) {
 		binary.BigEndian.PutUint32(buf, uint32(id))
 		f, _ := c.Find(buf)
 		if f == reader.Found {
-			kv = c.Current()
+			c.Current(block.Both, &kv)
 			v := binary.BigEndian.Uint32(kv.Value)
 			if id < 500_000 && v != math.MaxUint32 {
 				log.Panicln("i", id, "v", v)
@@ -405,7 +406,7 @@ func TestMerge(t *testing.T) {
 	i = 0
 	more, _ = c.First()
 	for more {
-		kv = c.Current()
+		c.Current(block.Both, &kv)
 		v := binary.BigEndian.Uint32(kv.Value)
 		if i < 500_000 && v != math.MaxUint32 {
 			log.Panicln("i", i, "v", v)

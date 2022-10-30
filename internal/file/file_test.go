@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stangelandcl/teepeedb/internal/block"
 	"github.com/stangelandcl/teepeedb/internal/reader"
 	"github.com/stangelandcl/teepeedb/internal/shared"
 	"github.com/stangelandcl/teepeedb/internal/writer"
@@ -70,7 +71,8 @@ func novalues() {
 		panic("not first")
 	}
 	for {
-		kv = c.Current()
+		kv := shared.KV{}
+		c.Current(block.Both, &kv)
 		if len(kv.Key) != 4 {
 			panic("len != 4")
 		}
@@ -132,7 +134,8 @@ func run() {
 		panic("not first")
 	}
 	for {
-		kv = c.Current()
+		kv := shared.KV{}
+		c.Current(block.Both, &kv)
 		if len(kv.Key) != 4 || len(kv.Value) != 4 {
 			panic("len != 4")
 		}
@@ -156,7 +159,8 @@ func run() {
 		panic("not last")
 	}
 	for {
-		kv = c.Current()
+		kv := shared.KV{}
+		c.Current(block.Both, &kv)
 		i--
 		k := binary.BigEndian.Uint32(kv.Key)
 		v := binary.BigEndian.Uint32(kv.Value)
@@ -178,7 +182,8 @@ func run() {
 		if c.Find(buf[:]) == 0 {
 			log.Panicln("can't find sorted", i)
 		}
-		kv = c.Current()
+		kv := shared.KV{}
+		c.Current(block.Both, &kv)
 		if len(kv.Key) != 4 || len(kv.Value) != 4 {
 			panic("len != 4")
 		}
@@ -202,7 +207,8 @@ func run() {
 		if c.Find(buf[:]) == 0 {
 			log.Panicln("can't find", ids[i], "at", i)
 		}
-		kv = c.Current()
+		kv := shared.KV{}
+		c.Current(block.Both, &kv)
 		k := binary.BigEndian.Uint32(kv.Key)
 		v := binary.BigEndian.Uint32(kv.Value)
 		if k != ids[i] || v != 1 {
@@ -221,7 +227,8 @@ func run() {
 		if c.Find(buf[:]) == 0 {
 			log.Panicln("can't find", ids[i], "at", i)
 		}
-		kv = c.Current()
+		kv := shared.KV{}
+		c.Current(block.Both, &kv)
 		k := binary.BigEndian.Uint32(kv.Key)
 		v := binary.BigEndian.Uint32(kv.Value)
 		if k != ids[i] || v != 1 {

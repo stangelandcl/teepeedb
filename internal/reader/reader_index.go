@@ -34,9 +34,9 @@ func convert(key, val []byte) (ikv IndexKV) {
 }
 
 func (r *Index) Get() IndexKV {
-	k, _ := r.b.Key(r.b.idx)
-	v := r.b.Value(r.b.idx)
-	return convert(k, v)
+	kv := shared.KV{}
+	r.b.At(r.b.idx, block.Both, &kv)
+	return convert(kv.Key, kv.Value)
 }
 
 func (r *Index) LessOrEqual(find []byte) bool {
@@ -65,7 +65,8 @@ func (b *Index) InRange(key []byte) bool {
 	if bytes.Compare(key, k) < 0 {
 		return false
 	}
-	v := b.b.rb.Value(b.b.Len() - 1)
-	ikv := convert(nil, v)
+	kv := shared.KV{}
+	b.b.rb.At(b.b.rb.Count-1, block.Both, &kv)
+	ikv := convert(kv.Key, kv.Value)
 	return bytes.Compare(key, ikv.LastKey) <= 0
 }

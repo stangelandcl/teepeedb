@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/stangelandcl/teepeedb/internal/lz4"
+	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 type ReadBlock struct {
@@ -16,7 +17,8 @@ type ReadBlock struct {
 
 	// remaining compressed value bytes
 	// directly references mmapped file
-	vbuf []byte
+	vbuf   []byte
+	nvcomp int
 
 	// uncompressed buffers
 	// for reusing slice memory so each decompression
@@ -25,7 +27,31 @@ type ReadBlock struct {
 	vuncomp []byte
 }
 
-var pool = sync.Pool{}
+var pool = sync.Pool{New: func() any { return &ReadBlock{} }}
+
+func Read(buf []byte) *ReadBlock {
+	ncomp, n := binary.Uvarint(buf)
+	buf = buf[n:]
+	nuncomp, n := binary.Uvarint(buf)
+	buf = buf[n:]
+	count, n := binary.Uvarint(buf)
+	buf = buf[n:]
+
+	comp := buf[:ncomp]
+	buf = buf[ncomp:]
+
+	r := pool.Get().(*ReadBlock)
+	r.kuncomp = r.uncompress(r.kuncomp[:0], comp, int(nuncomp))
+	r.Count = int(count)
+	r.KeyOffsets = offsets(r.KeyOffsets[:0], r.kuncomp, r.Count)
+	r.Keys = r.kuncomp[r.Count*2:]
+	ncomp, n = binary.Uvarint(buf)
+	r.nvcomp = int(ncomp)
+	r.vbuf = buf[n:]
+	r.Vals = r.Vals[:0]
+	r.ValOffsets = r.ValOffsets[:0]
+	return r
+}
 
 func (b *ReadBlock) Close() {
 	b.KeyOffsets = b.KeyOffsets[:0]
@@ -35,6 +61,7 @@ func (b *ReadBlock) Close() {
 	b.vbuf = nil
 	b.kuncomp = b.kuncomp[:0]
 	b.vuncomp = b.vuncomp[:0]
+	b.nvcomp = 0
 	b.Count = 0
 	pool.Put(b)
 }
@@ -46,33 +73,57 @@ func (b *ReadBlock) KeyOffset(idx int) (offset int, delete bool) {
 	return
 }
 
-func (b *ReadBlock) Key(idx int) (key []byte, delete bool) {
-	var start, end int
-	start, delete = b.KeyOffset(idx)
+func (b *ReadBlock) Key(idx int) ([]byte, bool) {
+	x := int(b.KeyOffsets[idx])
+	start := x >> 1
+	delete := start&1 != 0
 	idx++
-	if idx == int(b.Count) {
-		end = len(b.Keys)
-	} else {
-		end, _ = b.KeyOffset(idx)
+	end := len(b.Keys)
+	if idx != int(b.Count) {
+		end = int(b.KeyOffsets[idx]) >> 1
 	}
-	key = b.Keys[start:end]
-	return
+	return b.Keys[start:end], delete
 }
 
-func (b *ReadBlock) Value(idx int) []byte {
-	if len(b.ValOffsets) == 0 {
-		b.value()
-	}
+type Which int
 
-	var start, end int
-	start = int(b.ValOffsets[idx])
-	idx++
-	if idx == int(b.Count) {
-		end = len(b.Vals)
-	} else {
-		end = int(b.ValOffsets[idx])
+const (
+	Key  = 1 << 0
+	Val  = 1 << 1
+	Both = Key | Val
+)
+
+func (b *ReadBlock) At(idx int, which Which, kv *shared.KV) {
+	if which&Key != 0 {
+		x := int(b.KeyOffsets[idx])
+		start := x >> 1
+		kv.Delete = start&1 != 0
+		next := idx + 1
+		end := len(b.Keys)
+		if next != int(b.Count) {
+			end = int(b.KeyOffsets[next]) >> 1
+		}
+		kv.Key = b.Keys[start:end]
 	}
-	return b.Vals[start:end]
+	if which&Val != 0 {
+		if len(b.ValOffsets) == 0 {
+			// no values check
+			if b.nvcomp == 0 {
+				return
+			}
+			b.value()
+		}
+
+		var start, end int
+		start = int(b.ValOffsets[idx])
+		idx++
+		if idx == int(b.Count) {
+			end = len(b.Vals)
+		} else {
+			end = int(b.ValOffsets[idx])
+		}
+		kv.Value = b.Vals[start:end]
+	}
 }
 
 func offsets(dst []uint16, src []byte, n int) []uint16 {
@@ -96,43 +147,12 @@ func (r *ReadBlock) uncompress(dst, comp []byte, nuncomp int) []byte {
 	return dst
 }
 
-//var poolcount = 0
-
-func Read(buf []byte) *ReadBlock {
-	nuncomp, n := binary.Uvarint(buf)
-	buf = buf[n:]
-	ncomp, n := binary.Uvarint(buf)
-	buf = buf[n:]
-	count, n := binary.Uvarint(buf)
-	buf = buf[n:]
-
-	comp := buf[:ncomp]
-	buf = buf[ncomp:]
-
-	r, ok := pool.Get().(*ReadBlock)
-	if !ok {
-		//poolcount++
-		//fmt.Println("missing from pool", poolcount)
-		r = &ReadBlock{}
-	}
-
-	r.kuncomp = r.uncompress(r.kuncomp[:0], comp, int(nuncomp))
-	r.Count = int(count)
-	r.KeyOffsets = offsets(r.KeyOffsets[:0], r.kuncomp, r.Count)
-	r.Keys = r.kuncomp[r.Count*2:]
-	r.vbuf = buf
-	r.Vals = r.Vals[:0]
-	r.ValOffsets = r.ValOffsets[:0]
-	return r
-}
-
+// decompress value
 func (r *ReadBlock) value() {
 	buf := r.vbuf
 	nuncomp, n := binary.Uvarint(buf)
 	buf = buf[n:]
-	ncomp, n := binary.Uvarint(buf)
-	buf = buf[n:]
-	comp := buf[:ncomp]
+	comp := buf[:r.nvcomp]
 
 	r.vuncomp = r.uncompress(r.vuncomp[:0], comp, int(nuncomp))
 	r.ValOffsets = offsets(r.ValOffsets[:0], r.vuncomp, r.Count)

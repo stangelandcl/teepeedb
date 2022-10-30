@@ -76,25 +76,33 @@ func (w *Writer) Write(f io.Writer, b *WriteBlock) (Stats, error) {
 
 	w.compress()
 
-	n := binary.PutUvarint(tmp[:], uint64(len(w.uncomp)))
-	n += binary.PutUvarint(tmp[n:], uint64(len(w.comp)))
+	n := binary.PutUvarint(tmp[:], uint64(len(w.comp)))
+	n += binary.PutUvarint(tmp[n:], uint64(len(w.uncomp)))
 	n += binary.PutUvarint(tmp[n:], uint64(len(b.KeyOffsets))) // count
 	ew.Write(tmp[:n])                                          // sizes
 	ew.Write(w.comp)                                           // compressed bytes
 
-	w.uncomp = differences(w.uncomp[:0], b.ValOffsets)
-	w.uncomp = append(w.uncomp, b.Vals...)
-
-	w.compress()
-
-	n = binary.PutUvarint(tmp[:], uint64(len(w.uncomp)))
-	n += binary.PutUvarint(tmp[n:], uint64(len(w.comp)))
-	ew.Write(tmp[:n]) // sizes
-	ew.Write(w.comp)  // compressed bytes
-
 	b.KeyOffsets = b.KeyOffsets[:0]
-	b.ValOffsets = b.ValOffsets[:0]
 	b.Keys = b.Keys[:0]
+
+	// write values
+
+	if len(b.Vals) == 0 {
+		n = binary.PutUvarint(tmp[:], 0) // zero length compressed sizes means no values
+		ew.Write(tmp[:n])                // sizes
+	} else {
+		w.uncomp = differences(w.uncomp[:0], b.ValOffsets)
+		w.uncomp = append(w.uncomp, b.Vals...)
+
+		w.compress()
+
+		n = binary.PutUvarint(tmp[:], uint64(len(w.comp)))
+		n += binary.PutUvarint(tmp[n:], uint64(len(w.uncomp)))
+		ew.Write(tmp[:n]) // sizes
+		ew.Write(w.comp)  // compressed bytes
+	}
+
+	b.ValOffsets = b.ValOffsets[:0]
 	b.Vals = b.Vals[:0]
 
 	return s, ew.Error()

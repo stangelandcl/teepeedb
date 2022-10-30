@@ -8,6 +8,8 @@ import (
 	"os"
 	"testing"
 	"time"
+
+	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 func TestExample(t *testing.T) {
@@ -66,8 +68,9 @@ func TestExample(t *testing.T) {
 		tm = time.Now()
 		// always call first/last/find before next/previous
 		more := c.First()
+		kv := shared.KV{}
 		for more {
-			kv := c.Current()
+			c.Current(Both, &kv)
 			k := binary.BigEndian.Uint32(kv.Key)
 			v := binary.BigEndian.Uint32(kv.Value)
 			if i != k || i != v {
@@ -83,7 +86,8 @@ func TestExample(t *testing.T) {
 		// always call first/last/find before next/previous
 		more = c.First()
 		for more {
-			k := binary.BigEndian.Uint32(c.Key())
+			c.Current(Key, &kv)
+			k := binary.BigEndian.Uint32(kv.Key)
 			if i != k {
 				log.Panicln("i", i, "k", k)
 			}
@@ -171,8 +175,9 @@ func TestDB(t *testing.T) {
 
 	i := uint32(0)
 	more := c.First()
+	kv := shared.KV{}
 	for more {
-		kv := c.Current()
+		c.Current(Both, &kv)
 		k := binary.BigEndian.Uint32(kv.Key)
 		v := binary.BigEndian.Uint32(kv.Value)
 		if i != k || i != v {
@@ -185,14 +190,14 @@ func TestDB(t *testing.T) {
 
 	key := binary.BigEndian.AppendUint32(nil, uint32(25_578))
 	if c.Find(key) == Found {
-		kv := c.Current()
+		c.Current(Both, &kv)
 		fmt.Println("found", binary.BigEndian.Uint32(kv.Value))
 
 		if c.Next() {
-			kv := c.Current()
+			c.Current(Both, &kv)
 			fmt.Println("next", binary.BigEndian.Uint32(kv.Key), binary.BigEndian.Uint32(kv.Value))
 			if c.Next() {
-				kv := c.Current()
+				c.Current(Both, &kv)
 				fmt.Println("next", binary.BigEndian.Uint32(kv.Key), binary.BigEndian.Uint32(kv.Value))
 			}
 		}
@@ -200,14 +205,14 @@ func TestDB(t *testing.T) {
 
 	key = binary.BigEndian.AppendUint32(nil, uint32(25_578))
 	if c.Find(key) == Found {
-		kv := c.Current()
+		c.Current(Both, &kv)
 		fmt.Println("found", binary.BigEndian.Uint32(kv.Value))
 
 		if c.Previous() {
-			kv = c.Current()
+			c.Current(Both, &kv)
 			fmt.Println("prev", binary.BigEndian.Uint32(kv.Key), binary.BigEndian.Uint32(kv.Value))
 			if c.Previous() {
-				kv = c.Current()
+				c.Current(Both, &kv)
 				fmt.Println("prev", binary.BigEndian.Uint32(kv.Key), binary.BigEndian.Uint32(kv.Value))
 			}
 		}

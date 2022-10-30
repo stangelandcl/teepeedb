@@ -4,6 +4,7 @@ import (
 	"bytes"
 
 	"github.com/stangelandcl/teepeedb/internal/block"
+	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 type Move byte
@@ -57,9 +58,8 @@ func (b *Block) Find(find []byte, back bool) FindResult {
 
 	for lo <= hi {
 		i := (lo + hi) / 2
-
-		key, _ := b.rb.Key(i)
-		c := bytes.Compare(key, find)
+		k, _ := b.rb.Key(i)
+		c := bytes.Compare(k, find)
 		if c < 0 {
 			lo = i + 1
 		} else if c > 0 {
@@ -83,18 +83,8 @@ func (b *Block) Find(find []byte, back bool) FindResult {
 	return NotFound
 }
 
-func (b *Block) Key(idx int) ([]byte, bool) {
-	return b.rb.Key(idx)
-}
-
-func (b *Block) Value(i int) []byte {
-	return b.rb.Value(i)
-}
-
-func (b *Block) At(idx int) (key []byte, val []byte, delete bool) {
-	key, delete = b.rb.Key(idx)
-	val = b.rb.Value(idx)
-	return
+func (b *Block) At(idx int, which block.Which, kv *shared.KV) {
+	b.rb.At(idx, which, kv)
 }
 
 func (b *Block) Len() int {

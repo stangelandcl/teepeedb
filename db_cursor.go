@@ -1,12 +1,14 @@
 package teepeedb
 
 import (
+	"github.com/stangelandcl/teepeedb/internal/block"
 	"github.com/stangelandcl/teepeedb/internal/merge"
 	"github.com/stangelandcl/teepeedb/internal/reader"
 	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 type FindResult int
+type Which int
 
 const (
 	// no values greater or equal to key exist
@@ -15,6 +17,10 @@ const (
 	Found FindResult = FindResult(reader.Found)
 	// found a value greater or equal to key
 	FoundGreater FindResult = FindResult(reader.FoundGreater)
+
+	Key   Which = Which(block.Key)
+	Value Which = Which(block.Val)
+	Both  Which = Which(block.Both)
 )
 
 // Not found and nothing greater found
@@ -122,15 +128,6 @@ func (c *Cursor) Find(find []byte) FindResult {
 	return result
 }
 
-func (c *Cursor) Current() shared.KV {
-	return c.m.Current()
-}
-
-func (c *Cursor) Key() []byte {
-	k, _ := c.m.Key()
-	return k
-}
-
-func (c *Cursor) Value() []byte {
-	return c.m.Value()
+func (c *Cursor) Current(which Which, kv *shared.KV) {
+	c.m.Current(block.Which(which), kv)
 }
