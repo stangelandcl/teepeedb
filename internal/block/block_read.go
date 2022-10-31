@@ -76,7 +76,7 @@ func (b *ReadBlock) KeyOffset(idx int) (offset int, delete bool) {
 func (b *ReadBlock) Key(idx int) ([]byte, bool) {
 	x := int(b.KeyOffsets[idx])
 	start := x >> 1
-	delete := start&1 != 0
+	delete := x&1 != 0
 	idx++
 	end := len(b.Keys)
 	if idx != int(b.Count) {
@@ -97,7 +97,7 @@ func (b *ReadBlock) At(idx int, which Which, kv *shared.KV) {
 	if which&Key != 0 {
 		x := int(b.KeyOffsets[idx])
 		start := x >> 1
-		kv.Delete = start&1 != 0
+		kv.Delete = x&1 != 0
 		next := idx + 1
 		end := len(b.Keys)
 		if next != int(b.Count) {
