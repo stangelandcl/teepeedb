@@ -13,6 +13,7 @@ type Cursor struct {
 	cursors []*reader.Cursor
 	heap    heap
 	closed  bool
+	key     []byte
 }
 
 func (c *Cursor) Close() {
@@ -68,54 +69,38 @@ func (c *Cursor) Previous() (more, delete bool) {
 
 func (c *Cursor) move(order int) (more, delete bool) {
 	next := order == 1
-	last := c.heap.Pop()
-	var found bool
+	c.key = append(c.key[:0], c.heap.Values[0].Key...)
+	key := &c.heap.Values[0]
 	// increment cursor for current key and for all older levels
-	// that are less or equal to that key
-	for len(c.heap.Values) > 0 {
+	// that are equal to that key
+	for {
+		idx := key.Index
+		var found bool
+		if next {
+			found = key.Cursor.Next()
+		} else {
+			found = key.Cursor.Previous()
+		}
+		if found {
+			key.Key, key.Delete = key.Cursor.Key()
+			c.heap.Fix(0)
+			// same cursor is the lowest key so we are done
+			if c.heap.Values[0].Index == idx {
+				break
+			}
+		} else {
+			// this cursor is at its iteration endpoint
+			c.heap.Pop()
+			if len(c.heap.Values) == 0 {
+				return false, false
+			}
+		}
 		key := &c.heap.Values[0]
-		if bytes.Compare(key.Key, last.Key)*order > 0 {
+		if bytes.Compare(key.Key, c.key)*order > 0 {
 			break
 		}
-
-		for {
-			if next {
-				found = key.Cursor.Next()
-			} else {
-				found = key.Cursor.Previous()
-			}
-			if !found {
-				c.heap.Pop()
-				break
-			}
-
-			key.Key, key.Delete = key.Cursor.Key()
-			if bytes.Compare(key.Key, last.Key)*order > 0 {
-				c.heap.Fix(0)
-				break
-			}
-		}
 	}
 
-	if next {
-		found = last.Cursor.Next()
-	} else {
-		found = last.Cursor.Previous()
-	}
-	if found {
-		last.Key, last.Delete = last.Cursor.Key()
-		c.heap.Push(last)
-	}
-
-	if len(c.heap.Values) == 0 {
-		return false, false
-	}
-	/*
-		more := c.heap.Values[0].Cursor.Next()
-		if !more {
-			return false
-		}*/
-	key := &c.heap.Values[0]
 	return true, key.Delete
 }
 

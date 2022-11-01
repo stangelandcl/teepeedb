@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 	"time"
 
@@ -20,7 +21,10 @@ type DB struct {
 	readLock sync.Mutex
 	// so deleting old files from merge doesn't coincide with opening
 	// a new reader on those files
-	mergeLock       sync.Mutex
+	mergeLock sync.Mutex
+	// counter counts down so lower numbered L0 files are newer values
+	// and can be sorted the same as L1,L2,L3 files etc which are the same
+	// lower numbered files contain newer values
 	counter         int64
 	mergerChan      chan int
 	mergerWaitGroup sync.WaitGroup
@@ -36,6 +40,8 @@ type DB struct {
 	// size of level N + 1 = multiplier + size of level N
 	multiplier int
 }
+
+const counterMax = 999_999_999_999_999
 
 type Stats struct {
 	// number of data blocks
@@ -76,6 +82,7 @@ func Open(directory string, opts ...Opt) (*DB, error) {
 	db := &DB{
 		directory:  directory,
 		mergerChan: make(chan int, 2),
+		counter:    counterMax,
 
 		/* options */
 		blockSize:      4096,
@@ -135,6 +142,9 @@ func (db *DB) reloadReader() error {
 			return err
 		}
 
+		sort.Slice(matches, func(i, j int) bool {
+			return matches[i] < matches[j]
+		})
 		r, err = merge.NewReader(matches)
 		return err
 	}()
@@ -174,11 +184,11 @@ func (db *DB) Write() (Writer, error) {
 
 	files, err := filepath.Glob(db.directory + "/l0.*.lsm")
 	if err == nil && len(files) == 0 {
-		db.counter = 0
+		db.counter = counterMax
 	}
 
-	db.counter++
-	filename := fmt.Sprintf("%v/l0.%016d.lsm", db.directory, db.counter)
+	filename := fmt.Sprintf("%v/l0.%015d.lsm", db.directory, db.counter)
+	db.counter--
 	w, err := writer.NewFile(filename+".tmp", db.blockSize)
 	if err != nil {
 		db.writeLock.Unlock()
