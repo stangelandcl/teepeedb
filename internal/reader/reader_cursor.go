@@ -87,8 +87,6 @@ func (c *Cursor) follow(dir Move, ikv *IndexKV, i int) bool {
 		}
 		buf := c.r.readBlock(ikv.Position)
 		idx := NewIndex(buf)
-		//idx.Move(dir)
-		//*ikv = idx.Get()
 		c.indexes = append(c.indexes, idx)
 	}
 

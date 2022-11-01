@@ -15,8 +15,8 @@ import (
 // this is for checking if deletes should be tombstones or real deletes
 // lowest level can use real deletes
 func (db *DB) hasLowerLevel(min int) bool {
-	for i := min; i < 10; i++ {
-		_, err := os.Stat(fmt.Sprint(db.directory, "/", "l", i, ".lsm"))
+	for i := min; i < maxLevel; i++ {
+		_, err := os.Stat(fmt.Sprintf("%v/%02d.lsm", db.directory, i))
 		if err == nil {
 			return true
 		}
@@ -46,7 +46,7 @@ func (db *DB) mergeLoop() {
 
 		// loop because maybe new data came in as we were merging
 		for {
-			files, err := filepath.Glob(fmt.Sprint(db.directory, "/", "l0.*.lsm"))
+			files, err := filepath.Glob(fmt.Sprintf("%v/l00.*.lsm", db.directory))
 			if err != nil {
 				log.Println("error globbing l0 files in", db.directory, err)
 				break
@@ -66,10 +66,10 @@ func (db *DB) mergeLoop() {
 
 			var dst string
 			i := 1
-			for ; i < 10; i++ {
+			for ; i < maxLevel; i++ {
 				current := max
 				max *= db.multiplier
-				dst = fmt.Sprint(db.directory, "/l", i, ".lsm")
+				dst = fmt.Sprintf("%v/l%02d.lsm", db.directory, i)
 				_, err = os.Stat(dst)
 				if err == nil {
 					files = append(files, dst)
@@ -90,17 +90,6 @@ func (db *DB) mergeLoop() {
 				break
 			}
 
-			/*
-				// merge level 1+ into next lowest level if possible
-				db.mergeLowerLevels()
-
-				files, _ = filepath.Glob(fmt.Sprint(db.directory, "/", "*.tmp"))
-				for _, f := range files {
-					if !strings.Contains(f, "/l0.") {
-						fmt.Println("ll still have tmp", f)
-					}
-				}
-			*/
 			err = db.reloadReader()
 			if err != nil {
 				log.Println("error reopening readers", db.directory, err)
@@ -116,35 +105,6 @@ func (db *DB) mergeLoop() {
 
 	db.mergerWaitGroup.Done()
 }
-
-/*
-func (db *DB) mergeLowerLevels() {
-	max := db.baseSize
-	for i := 1; i < 10; i++ {
-		new := fmt.Sprint(db.directory, "/", "l", i, ".lsm")
-		fs, err := os.Stat(new)
-		current := max
-		max *= db.multiplier
-		if err != nil || fs.Size() < int64(current) {
-			continue
-		}
-
-		old := fmt.Sprint(db.directory, "/", "l", i+1, ".lsm")
-		delete := !db.hasLowerLevel(i + 2)
-
-		files := []string{new}
-		_, err = os.Stat(old)
-		if err == nil {
-			files = append(files, old)
-		}
-		err = db.merge(old, files, delete)
-		if err != nil {
-			log.Println("error merging into", db.directory, "into l1:", err)
-			break
-		}
-	}
-}
-*/
 
 func (db *DB) merge(dstfile string, files []string, delete bool) error {
 	m, err := merge.NewMerger(dstfile, files, delete, db.blockSize)

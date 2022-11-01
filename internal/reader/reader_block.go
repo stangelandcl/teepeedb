@@ -70,7 +70,7 @@ func (b *Block) Find(find []byte, back bool) FindResult {
 		}
 	}
 
-	/* return first value less than key */
+	// return first value less than key
 	b.idx = lo
 	if back {
 		if b.idx > 0 {

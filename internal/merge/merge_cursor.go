@@ -104,20 +104,6 @@ func (c *Cursor) move(order int) (more, delete bool) {
 	return true, key.Delete
 }
 
-/*
-func (c *Cursor) Get(key []byte) (found, delete bool) {
-	c.heap.Values = c.heap.Values[:0]
-	for _, cur := range c.cursors {
-		found := cur.Find(key)
-		if found == reader.Found {
-			_, delete = cur.Key()
-			return true, delete
-		}
-	}
-	return false, false
-}
-*/
-
 // returns Found for exact match
 // Partial for found a value greater than key.
 // NotFound for no values >= key

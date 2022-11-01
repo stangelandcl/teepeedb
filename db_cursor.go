@@ -40,15 +40,6 @@ func (c *Cursor) Close() {
 	c.m.Close()
 }
 
-/*
-// set Key on input, value will be set if found is true
-func (c *Cursor) Get(key []byte) bool {
-	found, delete := c.m.Get(key)
-	found = found && !delete
-	return found
-}
-*/
-
 // call First or Find once before Previous
 // if more is true kv is valid until next call to cursor function
 func (c *Cursor) Next() bool {

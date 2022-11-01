@@ -207,45 +207,7 @@ func TestMerge(t *testing.T) {
 	}
 	fmt.Println("iterated", i, "in", time.Since(tm))
 
-	/*
-		i = count - 1
-		more = c.Last(&kv)
-		for more {
-			v := binary.BigEndian.Uint32(kv.Value)
-			if i < 500_000 && v != math.MaxUint32 {
-				log.Panicln("i", i, "v", v)
-			} else if i >= 500_000 && v == math.MaxUint32 {
-				log.Panicln("i", i, "v", v)
-			}
-			more = c.Previous(&kv)
-			i--
-		}
-		fmt.Println("reversed", count, "in", time.Since(tm))
-	*/
-	//c = r.Cursor()
-
 	buf := make([]byte, 4)
-	/*
-		tm = time.Now()
-
-		for i := uint32(0); i < count; i++ {
-			binary.BigEndian.PutUint32(buf, uint32(i))
-			found, _ := c.Get(buf)
-			if found {
-				kv = c.Current()
-				k := binary.BigEndian.Uint32(kv.Key)
-				v := binary.BigEndian.Uint32(kv.Value)
-				if i < 500_000 && v != math.MaxUint32 {
-					log.Panicln("i", i, "v", v)
-				} else if i >= 500_000 && (i != v || i != k) {
-					log.Panicln("i", i, "v", v)
-				}
-			} else {
-				log.Panicln("missing find", i)
-			}
-		}
-		fmt.Println("get all sorted", count, "in", time.Since(tm))
-	*/
 
 	tm = time.Now()
 	for i := uint32(0); i < count; i++ {
@@ -270,74 +232,6 @@ func TestMerge(t *testing.T) {
 	for i = 0; i < count; i++ {
 		ids[i] = uint32(i)
 	}
-	/*
-		rand.Shuffle(len(ids), func(i, j int) {
-			ids[i], ids[j] = ids[j], ids[i]
-		})
-
-		tm = time.Now()
-		for _, id := range ids[:1_000_000] {
-			binary.BigEndian.PutUint32(buf, uint32(id))
-			found, _ := c.Get(buf)
-			if found {
-				k := binary.BigEndian.Uint32(kv.Key)
-				v := binary.BigEndian.Uint32(kv.Value)
-				if id < 500_000 && v != math.MaxUint32 {
-					log.Panicln("i", id, "v", v)
-				} else if id >= 500_000 && (id != v || id != k) {
-					log.Panicln("i", id, "v", v)
-				}
-			} else {
-				log.Panicln("missing find", id)
-			}
-		}
-		fmt.Println("get rand", 1_000_000, "in", time.Since(tm))
-
-
-		rand.Shuffle(len(ids), func(i, j int) {
-			ids[i], ids[j] = ids[j], ids[i]
-		})
-		sort.Slice(ids, func(i, j int) bool {
-			return ids[i] < ids[j]
-		})
-		tm = time.Now()
-		for _, id := range ids[:1_000_000] {
-			binary.BigEndian.PutUint32(buf, uint32(id))
-			found, _ := c.Get(buf)
-			if found {
-				k := binary.BigEndian.Uint32(kv.Key)
-				v := binary.BigEndian.Uint32(kv.Value)
-				if id < 500_000 && v != math.MaxUint32 {
-					log.Panicln("i", id, "v", v)
-				} else if id >= 500_000 && (id != v || id != k) {
-					log.Panicln("i", id, "v", v)
-				}
-			} else {
-				log.Panicln("missing find", id)
-			}
-		}
-		fmt.Println("get rand sorted", 1_000_000, "in", time.Since(tm))
-	*/
-	/*
-		tm = time.Now()
-		for i = 0; i < count; i++ {
-			binary.BigEndian.PutUint32(buf, uint32(i))
-			f, _ := c.Find(buf)
-			if f == reader.Found {
-				kv = c.Current()
-				k := binary.BigEndian.Uint32(kv.Key)
-				v := binary.BigEndian.Uint32(kv.Value)
-				if i < 500_000 && v != math.MaxUint32 {
-					log.Panicln("i", i, "v", v, "k", k)
-				} else if i >= 500_000 && v == math.MaxUint32 {
-					log.Panicln("i", i, "v", v, "k", k)
-				}
-			} else {
-				log.Panicln("missing find", i)
-			}
-		}
-		fmt.Println("find all sorted", i, "in", time.Since(tm))
-	*/
 
 	rand.Shuffle(len(ids), func(i, j int) {
 		ids[i], ids[j] = ids[j], ids[i]

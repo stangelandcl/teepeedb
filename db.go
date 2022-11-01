@@ -41,7 +41,10 @@ type DB struct {
 	multiplier int
 }
 
-const counterMax = 999_999_999_999_999
+const (
+	counterMax = 999_999_999_999_999
+	maxLevel   = 10
+)
 
 type Stats struct {
 	// number of data blocks
@@ -84,7 +87,7 @@ func Open(directory string, opts ...Opt) (*DB, error) {
 		mergerChan: make(chan int, 2),
 		counter:    counterMax,
 
-		/* options */
+		// options
 		blockSize:      4096,
 		mergeFrequency: time.Hour,
 
@@ -182,12 +185,12 @@ func (db *DB) Write() (Writer, error) {
 		return Writer{}, fmt.Errorf("teepeedb: database closed")
 	}
 
-	files, err := filepath.Glob(db.directory + "/l0.*.lsm")
+	files, err := filepath.Glob(fmt.Sprintf("%v/l00.*.lsm", db.directory))
 	if err == nil && len(files) == 0 {
 		db.counter = counterMax
 	}
 
-	filename := fmt.Sprintf("%v/l0.%015d.lsm", db.directory, db.counter)
+	filename := fmt.Sprintf("%v/l00.%015d.lsm", db.directory, db.counter)
 	db.counter--
 	w, err := writer.NewFile(filename+".tmp", db.blockSize)
 	if err != nil {

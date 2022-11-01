@@ -13,6 +13,11 @@ type Opt func(db *DB)
 // and use 1 bit as a delete flag
 func WithBlockSize(size int) Opt {
 	return func(db *DB) {
+		if size < 512 {
+			size = 512
+		} else if size > 32768 {
+			size = 32768
+		}
 		db.blockSize = size
 	}
 }
@@ -27,5 +32,32 @@ func WithBlockSize(size int) Opt {
 func WithMergeFrequency(loop time.Duration) Opt {
 	return func(db *DB) {
 		db.mergeFrequency = loop
+	}
+}
+
+// set size in bytes of level 1
+// level 0 size is unbounded
+// levels 2-9 sizes are a multiple of level 1 size
+// default is 16 MB
+func WithBaseSize(sz int) Opt {
+	return func(db *DB) {
+		if sz < 1024 {
+			sz = 1024
+		}
+		db.baseSize = sz
+	}
+}
+
+// set multiplier to increase baseSize by when moving to higher levels
+// for example baseSize = 16MB and multiplier = 10
+// L1 = 16 MB, L2 = 160MB, L3 = 1600MB, L4 = 16000 MB, L5 = 160 GB, L6 = 1600 GB, L7 = 16 TB, L8 = 160 TB L9 = 1600 TB
+// there are at most 9 levels including level zero so make sure baseSize * mult ^ 9 is far more than needed
+// default is 10
+func WithMultiplier(mult int) Opt {
+	return func(db *DB) {
+		if mult < 2 {
+			mult = 2
+		}
+		db.multiplier = mult
 	}
 }
