@@ -1,10 +1,8 @@
 package teepeedb
 
 import (
-	"github.com/stangelandcl/teepeedb/internal/block"
 	"github.com/stangelandcl/teepeedb/internal/merge"
 	"github.com/stangelandcl/teepeedb/internal/reader"
-	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 type FindResult int
@@ -44,11 +42,11 @@ func (c *Cursor) Close() {
 // if more is true kv is valid until next call to cursor function
 func (c *Cursor) Next() bool {
 	for {
-		more, delete := c.m.Next()
+		more := c.m.Next()
 		if !more {
 			return false
 		}
-		if !delete {
+		if !c.m.Delete {
 			break
 		}
 	}
@@ -60,11 +58,11 @@ func (c *Cursor) Next() bool {
 func (c *Cursor) Previous() bool {
 
 	for {
-		more, delete := c.m.Previous()
+		more := c.m.Previous()
 		if !more {
 			return false
 		}
-		if !delete {
+		if !c.m.Delete {
 			break
 		}
 	}
@@ -74,9 +72,9 @@ func (c *Cursor) Previous() bool {
 // go to first key-value pair and return it if result is true
 // if result is false then DB is empty
 func (c *Cursor) First() bool {
-	more, delete := c.m.First()
-	for more && delete {
-		more, delete = c.m.Next()
+	more := c.m.First()
+	for more && c.m.Delete {
+		more = c.m.Next()
 	}
 	return more
 }
@@ -84,9 +82,9 @@ func (c *Cursor) First() bool {
 // go to last key-value pair and return it if result is true
 // if result is false then DB is empty
 func (c *Cursor) Last() bool {
-	more, delete := c.m.Last()
-	for more && delete {
-		more, delete = c.m.Previous()
+	more := c.m.Last()
+	for more && c.m.Delete {
+		more = c.m.Previous()
 	}
 	return more
 }
@@ -97,15 +95,15 @@ func (c *Cursor) Last() bool {
 // FoundGreater for a value greater than key.
 // NotFound for no values >= key
 func (c *Cursor) Find(find []byte) FindResult {
-	rs, delete := c.m.Find(find)
+	rs := c.m.Find(find)
 	result := FindResult(rs)
 	if result == NotFound {
 		return result
 	}
 
-	for delete {
+	for c.m.Delete {
 		var more bool
-		more, delete = c.m.Next()
+		more = c.m.Next()
 		if !more {
 			return NotFound
 		}
@@ -115,19 +113,9 @@ func (c *Cursor) Find(find []byte) FindResult {
 }
 
 func (c *Cursor) Key() []byte {
-	kv := shared.KV{}
-	c.m.Current(block.Key, &kv)
-	return kv.Key
+	return c.m.Key
 }
 
 func (c *Cursor) Value() []byte {
-	kv := shared.KV{}
-	c.m.Current(block.Val, &kv)
-	return kv.Value
-}
-
-func (c *Cursor) Current() (key, value []byte) {
-	kv := shared.KV{}
-	c.m.Current(block.Both, &kv)
-	return kv.Key, kv.Value
+	return c.m.Value()
 }

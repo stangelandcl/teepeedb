@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stangelandcl/teepeedb/internal/block"
 	"github.com/stangelandcl/teepeedb/internal/reader"
 	"github.com/stangelandcl/teepeedb/internal/shared"
 	"github.com/stangelandcl/teepeedb/internal/writer"
@@ -71,14 +70,13 @@ func novalues() {
 		panic("not first")
 	}
 	for {
-		kv := shared.KV{}
-		c.Current(block.Both, &kv)
-		if len(kv.Key) != 4 {
+		key, _ := c.Key()
+		if len(key) != 4 {
 			panic("len != 4")
 		}
-		k := binary.BigEndian.Uint32(kv.Key)
+		k := binary.BigEndian.Uint32(key)
 		if k != i || len(kv.Value) != 0 {
-			log.Panicln("invalid kv at", i, k, len(kv.Value))
+			log.Panicln("invalid kv at", i, k, len(c.Value()))
 		}
 		i++
 		if !c.Next() {
@@ -134,13 +132,13 @@ func run() {
 		panic("not first")
 	}
 	for {
-		kv := shared.KV{}
-		c.Current(block.Both, &kv)
-		if len(kv.Key) != 4 || len(kv.Value) != 4 {
+		key, _ := c.Key()
+		val := c.Value()
+		if len(key) != 4 || len(val) != 4 {
 			panic("len != 4")
 		}
-		k := binary.BigEndian.Uint32(kv.Key)
-		v := binary.BigEndian.Uint32(kv.Value)
+		k := binary.BigEndian.Uint32(key)
+		v := binary.BigEndian.Uint32(val)
 		if k != i || v != 1 {
 			log.Panicln("invalid kv at", i, k)
 		}
@@ -159,11 +157,11 @@ func run() {
 		panic("not last")
 	}
 	for {
-		kv := shared.KV{}
-		c.Current(block.Both, &kv)
+		key, _ := c.Key()
+		val := c.Value()
 		i--
-		k := binary.BigEndian.Uint32(kv.Key)
-		v := binary.BigEndian.Uint32(kv.Value)
+		k := binary.BigEndian.Uint32(key)
+		v := binary.BigEndian.Uint32(val)
 		if k != i || v != 1 {
 			log.Panicln("invalid kv at", i, k)
 		}
@@ -182,15 +180,15 @@ func run() {
 		if c.Find(buf[:]) == 0 {
 			log.Panicln("can't find sorted", i)
 		}
-		kv := shared.KV{}
-		c.Current(block.Both, &kv)
-		if len(kv.Key) != 4 || len(kv.Value) != 4 {
+		key, _ := c.Key()
+		val := c.Value()
+		if len(key) != 4 || len(val) != 4 {
 			panic("len != 4")
 		}
-		k := binary.BigEndian.Uint32(kv.Key)
-		v := binary.BigEndian.Uint32(kv.Value)
+		k := binary.BigEndian.Uint32(key)
+		v := binary.BigEndian.Uint32(val)
 		if k != i || v != 1 {
-			log.Panicln("invalid kv at", i, k, v, kv.Key, kv.Value)
+			log.Panicln("invalid kv at", i, k, v, key, val)
 		}
 	}
 	fmt.Println("findsorted", count, "in", time.Since(tm))
@@ -207,12 +205,12 @@ func run() {
 		if c.Find(buf[:]) == 0 {
 			log.Panicln("can't find", ids[i], "at", i)
 		}
-		kv := shared.KV{}
-		c.Current(block.Both, &kv)
-		k := binary.BigEndian.Uint32(kv.Key)
-		v := binary.BigEndian.Uint32(kv.Value)
+		key, _ := c.Key()
+		val := c.Value()
+		k := binary.BigEndian.Uint32(key)
+		v := binary.BigEndian.Uint32(val)
 		if k != ids[i] || v != 1 {
-			log.Panicln("invalid kv at", i, k, v, kv.Key, kv.Value)
+			log.Panicln("invalid kv at", i, k, v, key, val)
 		}
 	}
 	fmt.Println("findrand", 1_000_000, "in", time.Since(tm))
@@ -227,12 +225,12 @@ func run() {
 		if c.Find(buf[:]) == 0 {
 			log.Panicln("can't find", ids[i], "at", i)
 		}
-		kv := shared.KV{}
-		c.Current(block.Both, &kv)
-		k := binary.BigEndian.Uint32(kv.Key)
-		v := binary.BigEndian.Uint32(kv.Value)
+		key, _ := c.Key()
+		val := c.Value()
+		k := binary.BigEndian.Uint32(key)
+		v := binary.BigEndian.Uint32(val)
 		if k != ids[i] || v != 1 {
-			log.Panicln("invalid kv at", i, k, v, kv.Key, kv.Value)
+			log.Panicln("invalid kv at", i, k, v, key, val)
 		}
 	}
 	fmt.Println("find rand sorted", 1_000_000, "in", time.Since(tm))

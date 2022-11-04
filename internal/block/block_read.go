@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/stangelandcl/teepeedb/internal/lz4"
-	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 type ReadBlock struct {
@@ -93,37 +92,24 @@ const (
 	Both = Key | Val
 )
 
-func (b *ReadBlock) At(idx int, which Which, kv *shared.KV) {
-	if which&Key != 0 {
-		x := int(b.KeyOffsets[idx])
-		start := x >> 1
-		kv.Delete = x&1 != 0
-		next := idx + 1
-		end := len(b.Keys)
-		if next != int(b.Count) {
-			end = int(b.KeyOffsets[next]) >> 1
+func (b *ReadBlock) Value(idx int) []byte {
+	if len(b.ValOffsets) == 0 {
+		// no values check
+		if b.nvcomp == 0 {
+			return nil
 		}
-		kv.Key = b.Keys[start:end]
+		b.value()
 	}
-	if which&Val != 0 {
-		if len(b.ValOffsets) == 0 {
-			// no values check
-			if b.nvcomp == 0 {
-				return
-			}
-			b.value()
-		}
 
-		var start, end int
-		start = int(b.ValOffsets[idx])
-		idx++
-		if idx == int(b.Count) {
-			end = len(b.Vals)
-		} else {
-			end = int(b.ValOffsets[idx])
-		}
-		kv.Value = b.Vals[start:end]
+	var start, end int
+	start = int(b.ValOffsets[idx])
+	idx++
+	if idx == int(b.Count) {
+		end = len(b.Vals)
+	} else {
+		end = int(b.ValOffsets[idx])
 	}
+	return b.Vals[start:end]
 }
 
 func offsets(dst []uint16, src []byte, n int) []uint16 {

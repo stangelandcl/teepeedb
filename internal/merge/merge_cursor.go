@@ -3,9 +3,7 @@ package merge
 import (
 	"bytes"
 
-	"github.com/stangelandcl/teepeedb/internal/block"
 	"github.com/stangelandcl/teepeedb/internal/reader"
-	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 type Cursor struct {
@@ -13,7 +11,9 @@ type Cursor struct {
 	cursors []*reader.Cursor
 	heap    heap
 	closed  bool
-	key     []byte
+	last    []byte
+	Key     []byte
+	Delete  bool
 }
 
 func (c *Cursor) Close() {
@@ -24,15 +24,15 @@ func (c *Cursor) Close() {
 	}
 }
 
-func (c *Cursor) First() (more, delete bool) {
+func (c *Cursor) First() bool {
 	return c.end(1)
 }
 
-func (c *Cursor) Last() (more, delete bool) {
+func (c *Cursor) Last() bool {
 	return c.end(-1)
 }
 
-func (c *Cursor) end(order int) (more, delete bool) {
+func (c *Cursor) end(order int) (more bool) {
 	c.heap.Values = c.heap.Values[:0]
 	for i, cur := range c.cursors {
 		key := Position{
@@ -52,24 +52,26 @@ func (c *Cursor) end(order int) (more, delete bool) {
 		}
 	}
 	if len(c.heap.Values) == 0 {
-		return false, false
+		return false
 	}
 	c.heap.Init(order)
 	key := &c.heap.Values[0]
-	return true, key.Delete
+	c.Key = key.Key
+	c.Delete = key.Delete
+	return true
 }
 
-func (c *Cursor) Next() (more, delete bool) {
+func (c *Cursor) Next() bool {
 	return c.move(1)
 }
 
-func (c *Cursor) Previous() (more, delete bool) {
+func (c *Cursor) Previous() bool {
 	return c.move(-1)
 }
 
-func (c *Cursor) move(order int) (more, delete bool) {
+func (c *Cursor) move(order int) (more bool) {
 	next := order == 1
-	c.key = append(c.key[:0], c.heap.Values[0].Key...)
+	c.last = append(c.last[:0], c.heap.Values[0].Key...)
 	key := &c.heap.Values[0]
 	// increment cursor for current key and for all older levels
 	// that are equal to that key
@@ -92,22 +94,24 @@ func (c *Cursor) move(order int) (more, delete bool) {
 			// this cursor is at its iteration endpoint
 			c.heap.Pop()
 			if len(c.heap.Values) == 0 {
-				return false, false
+				return false
 			}
 		}
 		key := &c.heap.Values[0]
-		if bytes.Compare(key.Key, c.key)*order > 0 {
+		if bytes.Compare(key.Key, c.last)*order > 0 {
 			break
 		}
 	}
 
-	return true, key.Delete
+	c.Key = key.Key
+	c.Delete = key.Delete
+	return true
 }
 
 // returns Found for exact match
 // Partial for found a value greater than key.
 // NotFound for no values >= key
-func (c *Cursor) Find(find []byte) (reader.FindResult, bool) {
+func (c *Cursor) Find(find []byte) reader.FindResult {
 	c.heap.Values = c.heap.Values[:0]
 	for i, cur := range c.cursors {
 		key := Position{
@@ -123,17 +127,20 @@ func (c *Cursor) Find(find []byte) (reader.FindResult, bool) {
 
 	c.heap.Init(1)
 	if len(c.heap.Values) == 0 {
-		return reader.NotFound, false
+		return reader.NotFound
 	}
 
 	v := &c.heap.Values[0]
 	found := bytes.Equal(v.Key, find)
+	rs := reader.FoundGreater
 	if found {
-		return reader.Found, v.Delete
+		rs = reader.Found
 	}
-	return reader.FoundGreater, v.Delete
+	c.Key = v.Key
+	c.Delete = v.Delete
+	return rs
 }
 
-func (c *Cursor) Current(which block.Which, kv *shared.KV) {
-	c.heap.Values[0].Cursor.Current(which, kv)
+func (c *Cursor) Value() []byte {
+	return c.heap.Values[0].Cursor.Value()
 }

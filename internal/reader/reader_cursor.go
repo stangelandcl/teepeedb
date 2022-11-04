@@ -1,7 +1,6 @@
 package reader
 
 import (
-	"github.com/stangelandcl/teepeedb/internal/block"
 	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
@@ -15,8 +14,8 @@ func (c *Cursor) Key() ([]byte, bool) {
 	return c.block.rb.Key(c.block.idx)
 }
 
-func (c *Cursor) Current(which block.Which, kv *shared.KV) {
-	c.block.At(c.block.idx, which, kv)
+func (c *Cursor) Value() []byte {
+	return c.block.Value(c.block.idx)
 }
 
 func (c *Cursor) First() bool {

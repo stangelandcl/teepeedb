@@ -67,7 +67,7 @@ func TestExample(t *testing.T) {
 		// always call first/last/find before next/previous
 		more := c.First()
 		for more {
-			key, val := c.Current()
+			key, val := c.Key(), c.Value()
 			k := binary.BigEndian.Uint32(key)
 			v := binary.BigEndian.Uint32(val)
 			if i != k || i != v {
@@ -173,7 +173,7 @@ func TestDB(t *testing.T) {
 	i := uint32(0)
 	more := c.First()
 	for more {
-		key, val := c.Current()
+		key, val := c.Key(), c.Value()
 		k := binary.BigEndian.Uint32(key)
 		v := binary.BigEndian.Uint32(val)
 		if i != k || i != v {
@@ -190,10 +190,10 @@ func TestDB(t *testing.T) {
 		fmt.Println("found", binary.BigEndian.Uint32(val))
 
 		if c.Next() {
-			key, val := c.Current()
+			key, val := c.Key(), c.Value()
 			fmt.Println("next", binary.BigEndian.Uint32(key), binary.BigEndian.Uint32(val))
 			if c.Next() {
-				key, val := c.Current()
+				key, val := c.Key(), c.Value()
 				fmt.Println("next", binary.BigEndian.Uint32(key), binary.BigEndian.Uint32(val))
 			}
 		}
@@ -205,10 +205,10 @@ func TestDB(t *testing.T) {
 		fmt.Println("found", binary.BigEndian.Uint32(val))
 
 		if c.Previous() {
-			key, val := c.Current()
+			key, val := c.Key(), c.Value()
 			fmt.Println("prev", binary.BigEndian.Uint32(key), binary.BigEndian.Uint32(val))
 			if c.Previous() {
-				key, val := c.Current()
+				key, val := c.Key(), c.Value()
 				fmt.Println("prev", binary.BigEndian.Uint32(key), binary.BigEndian.Uint32(val))
 			}
 		}

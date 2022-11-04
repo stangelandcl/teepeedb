@@ -7,7 +7,6 @@ import (
 	"os"
 	"sort"
 
-	"github.com/stangelandcl/teepeedb/internal/block"
 	"github.com/stangelandcl/teepeedb/internal/shared"
 	"github.com/stangelandcl/teepeedb/internal/writer"
 )
@@ -60,20 +59,23 @@ func (w *merger) Run() error {
 	c := w.r.Cursor()
 	defer c.Close()
 	keys := []uint32{}
-	more, _ := c.First()
+	more := c.First()
 	i := 0
 	for more {
-		kv := shared.KV{}
-		c.Current(block.Both, &kv)
-		keys = append(keys, binary.BigEndian.Uint32(kv.Key))
-		if !kv.Delete || !w.delete {
+		keys = append(keys, binary.BigEndian.Uint32(c.Key))
+		if !c.Delete || !w.delete {
+			kv := shared.KV{
+				Key:    c.Key,
+				Value:  c.Value(),
+				Delete: c.Delete,
+			}
 			err := w.w.Add(&kv)
 			if err != nil {
 				return err
 			}
 		}
 
-		more, _ = c.Next()
+		more = c.Next()
 		i++
 	}
 
