@@ -5,8 +5,6 @@ import (
 	"encoding/binary"
 	"log"
 	"testing"
-
-	"github.com/stangelandcl/teepeedb/internal/shared"
 )
 
 func TestBlock(t *testing.T) {
@@ -24,14 +22,14 @@ func TestBlock(t *testing.T) {
 	defer r.Close()
 
 	for i := 0; i < 200; i++ {
-		kv := shared.KV{}
-		r.At(i, Both, &kv)
+		key, delete := r.Key(i)
+		val := r.Value(i)
 
-		kk := int(binary.BigEndian.Uint32(kv.Key))
-		vv := int(binary.BigEndian.Uint32(kv.Value))
+		kk := int(binary.BigEndian.Uint32(key))
+		vv := int(binary.BigEndian.Uint32(val))
 
-		if kv.Delete != (i%7 == 0) {
-			log.Panicln("bad delete", kv.Delete)
+		if delete != (i%7 == 0) {
+			log.Panicln("bad delete", delete)
 		}
 		if kk != i || vv != i {
 			log.Panicln(i, kk, vv)

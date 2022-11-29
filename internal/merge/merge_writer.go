@@ -1,11 +1,9 @@
 package merge
 
 import (
-	"encoding/binary"
 	"fmt"
 	"log"
 	"os"
-	"sort"
 
 	"github.com/stangelandcl/teepeedb/internal/shared"
 	"github.com/stangelandcl/teepeedb/internal/writer"
@@ -58,11 +56,10 @@ func (w *merger) Run() error {
 	}
 	c := w.r.Cursor()
 	defer c.Close()
-	keys := []uint32{}
+
 	more := c.First()
 	i := 0
 	for more {
-		keys = append(keys, binary.BigEndian.Uint32(c.Key))
 		if !c.Delete || !w.delete {
 			kv := shared.KV{
 				Key:    c.Key,
@@ -78,10 +75,6 @@ func (w *merger) Run() error {
 		more = c.Next()
 		i++
 	}
-
-	sort.Slice(keys, func(i, j int) bool {
-		return keys[i] < keys[j]
-	})
 
 	err := w.w.Commit()
 	if err != nil {
