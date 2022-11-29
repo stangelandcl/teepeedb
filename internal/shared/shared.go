@@ -89,7 +89,7 @@ func (h *FileFooter) Unmarshal(buf []byte) {
 	h.ValueSize = int(binary.LittleEndian.Uint64(buf[i:]))
 	i += 8
 	// other fields were added later. maintain backwards compatibility
-	if len(buf) == 0 {
+	if i == len(buf) {
 		h.RawKeyBytes = 0
 		h.RawValueBytes = 0
 		return
