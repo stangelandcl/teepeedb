@@ -112,6 +112,10 @@ func (f *File) Close() error {
 }
 
 func (f *File) Add(kv *shared.KV) error {
+	if len(kv.Key) > shared.MaxKeySize {
+		return shared.ErrKeyTooBig
+	}
+
 	f.footer.RawKeyBytes += len(kv.Key)
 	if kv.Delete {
 		f.footer.Deletes++
@@ -120,7 +124,7 @@ func (f *File) Add(kv *shared.KV) error {
 		f.footer.RawValueBytes += len(kv.Value)
 	}
 
-	if f.block.HasSpace(len(kv.Key), len(kv.Value), f.footer.BlockSize) {
+	if f.block.HasSpace(len(kv.Key), len(kv.Value), f.footer.BlockSize, 0) {
 		f.block.Put(kv.Key, kv.Value, kv.Delete)
 		return nil
 	}

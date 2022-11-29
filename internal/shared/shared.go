@@ -1,12 +1,19 @@
 package shared
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"fmt"
+)
 
 type BlockType byte
 
 const (
 	DataBlock  BlockType = 0
 	IndexBlock BlockType = 1
+	// Max key size 32768 (16 bit key offsets - 1 bit for delete flag) / 8 = 4096.
+	// slightly arbitrary but 4 keys must fit in less than 32768 bytes (minus some extra fluff)
+	// because index has to hold 2 keys + the values for two keys which are also keys so 4 keys
+	MaxKeySize = 4096 - 1 // -1 is arbitrary to keep less size in less than 12 bits
 )
 
 type IndexValue struct {
@@ -35,6 +42,9 @@ type FileFooter struct {
 	RawKeyBytes          int
 	RawValueBytes        int
 }
+
+// Key was greater than shared.MaxKeySize
+var ErrKeyTooBig = fmt.Errorf("teepee: key too big")
 
 func (h *FileFooter) Marshal() []byte {
 	buf := make([]byte, 12*8) // fields x sizeof(uint64)

@@ -31,6 +31,8 @@ func (b *WriteBlock) KeyAt(i int) []byte {
 
 func (b *WriteBlock) Put(key, val []byte, delete bool) {
 	if len(b.Keys) > math.MaxInt16 || len(b.Vals) > math.MaxUint16 {
+		// key < int16 because 1 bit is used for delete flag
+		// values < uint16 because all bits are used for size
 		log.Panicln("block size out of range. offset > 32767")
 	}
 	n := len(b.Keys) << 1
@@ -56,8 +58,16 @@ func (b *WriteBlock) Size() int {
 	return sz
 }
 
-func (b *WriteBlock) HasSpace(k, v, blockSize int) bool {
-	if len(b.KeyOffsets) == 0 {
+// index = 1 for index block
+// index = 0 for data block
+// higher level must have already checked that keylen <= shared.MaxKeySize
+func (b *WriteBlock) HasSpace(k, v, blockSize int, index int) bool {
+	// data block can get by with only 1 key but
+	// index blocks need two keys to make progress
+	// and not continually pushing the index up to a higher level
+	// index until it runs out of memory
+	// A higher level than this should check that key is <= shared.MaxKeySize
+	if len(b.KeyOffsets) <= index {
 		return true
 	}
 	n := (len(b.KeyOffsets)+1)*2 + len(b.Keys) + k

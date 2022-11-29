@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stangelandcl/teepeedb/internal/merge"
+	"github.com/stangelandcl/teepeedb/internal/shared"
 	"github.com/stangelandcl/teepeedb/internal/writer"
 )
 
@@ -44,7 +45,11 @@ type DB struct {
 const (
 	counterMax = 999_999_999_999_999
 	maxLevel   = 10
+
+	MaxKeySize = shared.MaxKeySize
 )
+
+var ErrKeyTooBig = shared.ErrKeyTooBig
 
 type Stats struct {
 	// number of data blocks

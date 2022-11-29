@@ -17,7 +17,7 @@ type Index struct {
 func (i *Index) HasSpace(key []byte, val shared.IndexValue, blockSize int) bool {
 	kl := len(key)
 	vl := varint.Len((val.Position<<1)|int(val.Type)) + varint.Len(len(val.LastKey)) + len(val.LastKey)
-	return i.b.HasSpace(kl, vl, blockSize)
+	return i.b.HasSpace(kl, vl, blockSize, 1)
 }
 
 func (i *Index) Add(key []byte, val shared.IndexValue) {
