@@ -40,7 +40,7 @@ func NewFile(filename string, blockSize int) (*File, error) {
 }
 
 func (f *File) Len() int {
-	return f.footer.DataBytes + f.footer.IndexBytes
+	return f.footer.CompressedDataBytes + f.footer.CompressedIndexBytes
 }
 
 func (f *File) Commit() error {
@@ -51,7 +51,7 @@ func (f *File) Commit() error {
 	}
 
 	if err == nil {
-		f.footer.DataBytes += f.f.Position - pos
+		f.footer.CompressedDataBytes += f.f.Position - pos
 		f.footer.DataBlocks++
 		key := info.FirstKey
 		iInfo := shared.IndexValue{
@@ -72,7 +72,7 @@ func (f *File) Commit() error {
 			return err
 		}
 
-		f.footer.IndexBytes += f.f.Position - pos
+		f.footer.CompressedIndexBytes += f.f.Position - pos
 		f.footer.IndexBlocks++
 		f.footer.LastIndexPosition = pos
 
@@ -112,10 +112,12 @@ func (f *File) Close() error {
 }
 
 func (f *File) Add(kv *shared.KV) error {
+	f.footer.RawKeyBytes += len(kv.Key)
 	if kv.Delete {
 		f.footer.Deletes++
 	} else {
 		f.footer.Inserts++
+		f.footer.RawValueBytes += len(kv.Value)
 	}
 
 	if f.block.HasSpace(len(kv.Key), len(kv.Value), f.footer.BlockSize) {
@@ -128,7 +130,7 @@ func (f *File) Add(kv *shared.KV) error {
 	if err != nil {
 		return err
 	}
-	f.footer.DataBytes += f.f.Position - pos
+	f.footer.CompressedDataBytes += f.f.Position - pos
 	f.footer.DataBlocks++
 
 	key := info.FirstKey
@@ -157,7 +159,7 @@ func (f *File) addToIndex(key []byte, iInfo shared.IndexValue, i int) error {
 		if err != nil {
 			return err
 		}
-		f.footer.IndexBytes += f.f.Position - pos
+		f.footer.CompressedIndexBytes += f.f.Position - pos
 		f.footer.IndexBlocks++
 		f.footer.LastIndexPosition = pos
 

@@ -234,4 +234,7 @@ func run() {
 		}
 	}
 	fmt.Println("find rand sorted", 1_000_000, "in", time.Since(tm))
+	dcomp := r.Footer().CompressedDataBytes
+	rawv := r.Footer().RawValueBytes
+	fmt.Println("compressed", dcomp, "raw val", rawv, "count", r.Footer().Inserts)
 }

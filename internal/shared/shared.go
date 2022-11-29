@@ -22,20 +22,22 @@ type KV struct {
 }
 
 type FileFooter struct {
-	BlockSize         int
-	BlockFormat       int
-	DataBlocks        int
-	DataBytes         int
-	Deletes           int
-	IndexBlocks       int
-	IndexBytes        int
-	Inserts           int
-	LastIndexPosition int
-	ValueSize         int
+	BlockSize            int
+	BlockFormat          int
+	DataBlocks           int
+	CompressedDataBytes  int
+	Deletes              int
+	IndexBlocks          int
+	CompressedIndexBytes int
+	Inserts              int
+	LastIndexPosition    int
+	ValueSize            int
+	RawKeyBytes          int
+	RawValueBytes        int
 }
 
 func (h *FileFooter) Marshal() []byte {
-	buf := make([]byte, 10*8) // fields x sizeof(uint64)
+	buf := make([]byte, 12*8) // fields x sizeof(uint64)
 	i := 0
 	binary.LittleEndian.PutUint64(buf[i:], uint64(h.BlockSize))
 	i += 8
@@ -43,19 +45,23 @@ func (h *FileFooter) Marshal() []byte {
 	i += 8
 	binary.LittleEndian.PutUint64(buf[i:], uint64(h.DataBlocks))
 	i += 8
-	binary.LittleEndian.PutUint64(buf[i:], uint64(h.DataBytes))
+	binary.LittleEndian.PutUint64(buf[i:], uint64(h.CompressedDataBytes))
 	i += 8
 	binary.LittleEndian.PutUint64(buf[i:], uint64(h.Deletes))
 	i += 8
 	binary.LittleEndian.PutUint64(buf[i:], uint64(h.IndexBlocks))
 	i += 8
-	binary.LittleEndian.PutUint64(buf[i:], uint64(h.IndexBytes))
+	binary.LittleEndian.PutUint64(buf[i:], uint64(h.CompressedIndexBytes))
 	i += 8
 	binary.LittleEndian.PutUint64(buf[i:], uint64(h.Inserts))
 	i += 8
 	binary.LittleEndian.PutUint64(buf[i:], uint64(h.LastIndexPosition))
 	i += 8
 	binary.LittleEndian.PutUint64(buf[i:], uint64(h.ValueSize))
+	i += 8
+	binary.LittleEndian.PutUint64(buf[i:], uint64(h.RawKeyBytes))
+	i += 8
+	binary.LittleEndian.PutUint64(buf[i:], uint64(h.RawValueBytes))
 	i += 8
 	return buf
 }
@@ -68,18 +74,28 @@ func (h *FileFooter) Unmarshal(buf []byte) {
 	i += 8
 	h.DataBlocks = int(binary.LittleEndian.Uint64(buf[i:]))
 	i += 8
-	h.DataBytes = int(binary.LittleEndian.Uint64(buf[i:]))
+	h.CompressedDataBytes = int(binary.LittleEndian.Uint64(buf[i:]))
 	i += 8
 	h.Deletes = int(binary.LittleEndian.Uint64(buf[i:]))
 	i += 8
 	h.IndexBlocks = int(binary.LittleEndian.Uint64(buf[i:]))
 	i += 8
-	h.IndexBytes = int(binary.LittleEndian.Uint64(buf[i:]))
+	h.CompressedIndexBytes = int(binary.LittleEndian.Uint64(buf[i:]))
 	i += 8
 	h.Inserts = int(binary.LittleEndian.Uint64(buf[i:]))
 	i += 8
 	h.LastIndexPosition = int(binary.LittleEndian.Uint64(buf[i:]))
 	i += 8
 	h.ValueSize = int(binary.LittleEndian.Uint64(buf[i:]))
+	i += 8
+	// other fields were added later. maintain backwards compatibility
+	if len(buf) == 0 {
+		h.RawKeyBytes = 0
+		h.RawValueBytes = 0
+		return
+	}
+	h.RawKeyBytes = int(binary.LittleEndian.Uint64(buf[i:]))
+	i += 8
+	h.RawValueBytes = int(binary.LittleEndian.Uint64(buf[i:]))
 	i += 8
 }

@@ -21,8 +21,7 @@ func (i *Index) HasSpace(key []byte, val shared.IndexValue, blockSize int) bool 
 }
 
 func (i *Index) Add(key []byte, val shared.IndexValue) {
-	i.buf = i.buf[:0]
-	i.buf = binary.AppendUvarint(i.buf, uint64((val.Position<<1)|int(val.Type)))
+	i.buf = binary.AppendUvarint(i.buf[:0], uint64((val.Position<<1)|int(val.Type)))
 	i.buf = append(i.buf, val.LastKey...)
 	kv := shared.KV{}
 	kv.Key = key

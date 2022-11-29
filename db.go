@@ -59,11 +59,20 @@ type Stats struct {
 	IndexBytes int
 	// number of inserts
 	Inserts int
+	// uncompressed key bytes - deletes and inserts
+	KeyBytes int
+	// uncompressed value bytes
+	ValueBytes int
 }
 
 // estimated compressed size
-func (s Stats) Size() int {
+func (s Stats) CompressedSize() int {
 	return s.DataBytes + s.IndexBytes
+}
+
+// estimated uncompressed size
+func (s Stats) UncompressedSize() int {
+	return s.ValueBytes + s.KeyBytes
 }
 
 // estimated counts: inserts - deletes >= 0
@@ -121,11 +130,13 @@ func (db *DB) Stats() Stats {
 	rs := Stats{}
 	for _, s := range st.Footers {
 		rs.DataBlocks += s.DataBlocks
-		rs.DataBytes += s.DataBytes
+		rs.DataBytes += s.CompressedDataBytes
 		rs.Deletes += s.Deletes
 		rs.IndexBlocks += s.IndexBlocks
-		rs.IndexBytes += s.IndexBytes
+		rs.IndexBytes += s.CompressedIndexBytes
 		rs.Inserts += s.Inserts
+		rs.KeyBytes = s.RawKeyBytes
+		rs.ValueBytes = s.RawValueBytes
 	}
 	return rs
 }

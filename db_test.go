@@ -120,7 +120,10 @@ func TestExample(t *testing.T) {
 	fmt.Println("found", finds, "keys of", count/10, "in random order in", time.Since(tm))
 
 	stats := db.Stats()
-	fmt.Println("estimated total size", stats.Size(), "estimated key count", stats.Count())
+	fmt.Println(
+		"compressed size", stats.CompressedSize(),
+		"uncompressed size", stats.UncompressedSize(),
+		"count", stats.Count())
 }
 
 func E[T any](x T, err error) T {

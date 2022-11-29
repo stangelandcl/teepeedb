@@ -6,16 +6,18 @@ import (
 
 func TestFooter(t *testing.T) {
 	x := FileFooter{
-		BlockSize:         1,
-		DataBlocks:        2,
-		DataBytes:         3,
-		Deletes:           4,
-		IndexBlocks:       5,
-		IndexBytes:        6,
-		Inserts:           7,
-		LastIndexPosition: 8,
-		ValueSize:         9,
-		BlockFormat:       1,
+		BlockSize:            1,
+		DataBlocks:           2,
+		CompressedDataBytes:  3,
+		Deletes:              4,
+		IndexBlocks:          5,
+		CompressedIndexBytes: 6,
+		Inserts:              7,
+		LastIndexPosition:    8,
+		ValueSize:            9,
+		BlockFormat:          1,
+		RawKeyBytes:          10,
+		RawValueBytes:        11,
 	}
 
 	buf := x.Marshal()
@@ -28,7 +30,7 @@ func TestFooter(t *testing.T) {
 	if x.DataBlocks != y.DataBlocks {
 		panic("datablocks")
 	}
-	if x.DataBytes != y.DataBytes {
+	if x.CompressedDataBytes != y.CompressedDataBytes {
 		panic("databytes")
 	}
 	if x.Deletes != y.Deletes {
@@ -37,7 +39,7 @@ func TestFooter(t *testing.T) {
 	if x.IndexBlocks != y.IndexBlocks {
 		panic("indexblocks")
 	}
-	if x.IndexBytes != y.IndexBytes {
+	if x.CompressedIndexBytes != y.CompressedIndexBytes {
 		panic("indexbytes")
 	}
 	if x.Inserts != y.Inserts {
@@ -51,5 +53,11 @@ func TestFooter(t *testing.T) {
 	}
 	if x.BlockFormat != y.BlockFormat {
 		panic("compression")
+	}
+	if x.RawKeyBytes != y.RawKeyBytes {
+		panic("keybytes")
+	}
+	if x.RawValueBytes != y.RawValueBytes {
+		panic("val bytes")
 	}
 }
