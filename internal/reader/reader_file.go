@@ -31,8 +31,9 @@ func NewFile(filename string) (*File, error) {
 	}
 	r.f = f
 	buf := f.Bytes
-	footerSize := binary.LittleEndian.Uint32(buf[len(buf)-4:])
-	r.footer.Unmarshal(buf[len(buf)-4-int(footerSize):])
+	footerSize := int(binary.LittleEndian.Uint32(buf[len(buf)-4:]))
+	start := len(buf) - 4 - footerSize
+	r.footer.Unmarshal(buf[start : start+footerSize])
 	if r.footer.BlockFormat != 1 {
 		f.Close()
 		return nil, fmt.Errorf("teepeedb: invalid block format: %v", r.footer.BlockFormat)
