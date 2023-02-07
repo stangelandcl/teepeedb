@@ -98,6 +98,10 @@ func (c *Cursor) follow(dir Move, ikv *IndexKV, i int) bool {
 }
 
 func (c *Cursor) firstLast(dir Move) bool {
+	if len(c.indexes) == 0 {
+		// no data in file
+		return false
+	}
 	for i := 1; i < len(c.indexes); i++ {
 		c.indexes[i].b.Close()
 	}

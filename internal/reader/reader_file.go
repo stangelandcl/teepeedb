@@ -13,13 +13,6 @@ type File struct {
 	footer shared.FileFooter
 }
 
-type hashKey struct {
-	Id  int
-	Pos int
-}
-
-var id uint64
-
 // return pointer because cursor references it it so it can't be
 // put in a list or moved otherwise
 func NewFile(filename string) (*File, error) {
@@ -52,6 +45,10 @@ func (r *File) readBlock(pos int) *block.ReadBlock {
 
 func (r *File) Cursor() *Cursor {
 	c := &Cursor{r: r}
+	if r.footer.LastIndexPosition < 0 {
+		// empty file
+		return c
+	}
 	block := r.readBlock(r.footer.LastIndexPosition)
 	c.indexes = append(c.indexes, NewIndex(block))
 	return c

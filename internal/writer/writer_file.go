@@ -86,7 +86,11 @@ func (f *File) Commit() error {
 			return err
 		}
 	}
-
+	if f.f.Position == 0 {
+		// empty file. first block is not at zero
+		// this file has no blocks, only footer
+		f.footer.LastIndexPosition = -1
+	}
 	h := f.footer.Marshal()
 	_, err = f.f.Write(h)
 	if err != nil {
