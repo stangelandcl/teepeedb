@@ -18,7 +18,51 @@ Uses memory mapping for reads.
 
 A teepee has the same basic shape as a log-structured merge tree, triangular. More importantly teepeedb is fun to say.
 
-### Example
+
+### File Format
+MaxKeyLength is 4095 (somewhat arbitrary except 4 keys must fit in 32768 bytes)
+
+Last byte in file is little-endian uint32 and is the size of FileFooter structure
+
+File footer goes immediately before it's size at the end of each file.
+Each field is serialized as little-endian uint64
+```
+type FileFooter struct {
+	BlockSize            int
+	BlockFormat          int
+	DataBlocks           int
+	CompressedDataBytes  int
+	Deletes              int
+	IndexBlocks          int
+	CompressedIndexBytes int
+	Inserts              int
+	LastIndexPosition    int
+	ValueSize            int
+	RawKeyBytes          int
+	RawValueBytes        int
+}
+```
+
+See internal/block/block_writer.go for the block format:
+It has a variable size header of
+1. unsigned varint length of the compressed keys
+2. unsigned varint length of uncompressed keys
+3. unsigned varint number of key offsets (# of keys + 1 for end of last key)
+body is LZ4 (block) compressed bytes of keys offsets followed by keys serialized as:
+1. the differences of unsigned 16 bit key offsets: left most 15 bits is the key length, right most bit is delete(1)/insert(0)
+2. key bytes of raw keys laid end to end
+values are next with a header:
+1. unsigned varint length of compressed bytes. if this value is zero, meaning no values, then the rest is skipped
+2. else unsigned varint uncompressed size of values
+body is LZ4 (block) compressed bytes of value offsets followed by values serialized as:
+1. the differences of unsigned 16 bit value offsets - full 16 bits used as length
+2. raw bytes of values laid end to end
+
+Each value in an index block is encoded:
+1. unsigned varint of a uint64 position of block left shifted 1, low byte is block type: data(0)/index(1)
+2. followed by the last key in that block (the key of this value is the first key in that block). this format gives us the range of key and value in a block without having to load and decompress the next block's keys
+
+### Example Usage
 From db_test.go TestExample()
 
 ```go
